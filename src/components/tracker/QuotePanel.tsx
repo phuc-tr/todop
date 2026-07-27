@@ -252,7 +252,7 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
       }
     >
       {bgUrl && (
-        <div className="absolute -inset-px rounded-lg bg-background/30 dark:bg-background/45 pointer-events-none" />
+        <div className="absolute -inset-px rounded-lg bg-black/45 pointer-events-none" />
       )}
       <div className="relative flex-1 min-w-0 flex flex-col overflow-hidden">
         {mode === "text" ? (
@@ -260,20 +260,32 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
             value={custom}
             onChange={(e) => saveCustom(e.target.value)}
             placeholder="Write anything…"
-            className="flex-1 min-h-0 h-full text-sm resize-none bg-transparent"
+            className={cn(
+              "flex-1 min-h-0 h-full text-sm resize-none bg-transparent",
+              bgUrl && "text-white placeholder:text-white/70 [text-shadow:0_1px_2px_rgba(0,0,0,0.7)]",
+            )}
           />
         ) : (
           <div
             className={cn(
               "flex-1 min-h-0 w-full text-sm leading-snug px-1 -mx-1 py-0.5 overflow-auto",
-              displayed ? "text-foreground" : "text-muted-foreground italic",
+              bgUrl
+                ? "text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.7)]"
+                : displayed
+                  ? "text-foreground"
+                  : "text-muted-foreground italic",
             )}
           >
             {displayed || "No quotes yet — use the list icon to add some."}
           </div>
         )}
       </div>
-      <div className="relative flex flex-col gap-1 shrink-0 opacity-60 group-hover:opacity-100 transition-opacity">
+      <div
+        className={cn(
+          "relative flex flex-col gap-1 shrink-0 opacity-60 group-hover:opacity-100 transition-opacity",
+          bgUrl && "text-white [&_svg]:drop-shadow-[0_1px_2px_rgba(0,0,0,0.7)]",
+        )}
+      >
         <input
           ref={fileInputRef}
           type="file"
