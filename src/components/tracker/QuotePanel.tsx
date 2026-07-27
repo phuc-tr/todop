@@ -261,7 +261,7 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
             onChange={(e) => saveCustom(e.target.value)}
             placeholder="Write anything…"
             className={cn(
-              "flex-1 min-h-0 h-full text-sm resize-none bg-transparent",
+              "flex-1 min-h-0 h-full text-sm resize-none bg-transparent border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-1 -mx-1 py-0.5",
               bgUrl && "text-white placeholder:text-white/70 [text-shadow:0_1px_2px_rgba(0,0,0,0.7)]",
             )}
           />
