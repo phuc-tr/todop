@@ -670,6 +670,20 @@ export function TrackerApp({ userId }: { userId: string }) {
           ) : null}
         </DragOverlay>
       </DndContext>
+
+      <Dialog open={goalCelebration} onOpenChange={setGoalCelebration}>
+        <DialogContent className="max-w-sm text-center">
+          <DialogHeader>
+            <DialogTitle className="text-center text-xl">🎉 Weekly goal reached!</DialogTitle>
+            <DialogDescription className="text-center">
+              You've completed {tasksGoal} {tasksGoal === 1 ? "task" : "tasks"} this week. Nice work.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="sm:justify-center">
+            <Button onClick={() => setGoalCelebration(false)}>Keep going</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
