@@ -13,7 +13,8 @@ import { Dices, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const COLLECTION_KEY = "tracker.quotes.collection";
-const CUSTOM_KEY = "tracker.quotes.custom";
+const CUSTOM_PREFIX = "tracker.quotes.custom.";
+const DISPLAYED_PREFIX = "tracker.quotes.displayed.";
 
 const DEFAULT_QUOTES = [
   "The secret of getting ahead is getting started. — Mark Twain",
@@ -48,11 +49,11 @@ function pickRandom(list: string[], exclude?: string): string {
   return pick;
 }
 
-export function QuotePanel() {
+export function QuotePanel({ weekKey }: { weekKey: string }) {
+  const customKey = CUSTOM_PREFIX + weekKey;
+  const displayedKey = DISPLAYED_PREFIX + weekKey;
   const [collection, setCollection] = useState<string[]>(() => loadCollection());
-  const [custom, setCustom] = useState<string>(() =>
-    typeof window === "undefined" ? "" : localStorage.getItem(CUSTOM_KEY) ?? "",
-  );
+  const [custom, setCustom] = useState<string>("");
   const [displayed, setDisplayed] = useState<string>("");
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
@@ -60,23 +61,43 @@ export function QuotePanel() {
   const [dialogDraft, setDialogDraft] = useState("");
 
   useEffect(() => {
-    if (custom.trim()) setDisplayed(custom);
-    else setDisplayed(pickRandom(collection));
+    if (typeof window === "undefined") return;
+    const savedCustom = localStorage.getItem(customKey) ?? "";
+    setCustom(savedCustom);
+    if (savedCustom.trim()) {
+      setDisplayed(savedCustom);
+      return;
+    }
+    const savedDisplayed = localStorage.getItem(displayedKey);
+    if (savedDisplayed) {
+      setDisplayed(savedDisplayed);
+    } else {
+      const pick = pickRandom(collection);
+      setDisplayed(pick);
+      if (pick) localStorage.setItem(displayedKey, pick);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [weekKey]);
 
   function shuffle() {
-    setDisplayed(pickRandom(collection, displayed));
+    const pick = pickRandom(collection, displayed);
+    setDisplayed(pick);
+    if (typeof window !== "undefined" && pick) localStorage.setItem(displayedKey, pick);
   }
 
   function saveCustom(value: string) {
     setCustom(value);
     if (typeof window !== "undefined") {
-      if (value.trim()) localStorage.setItem(CUSTOM_KEY, value);
-      else localStorage.removeItem(CUSTOM_KEY);
+      if (value.trim()) localStorage.setItem(customKey, value);
+      else localStorage.removeItem(customKey);
     }
-    if (value.trim()) setDisplayed(value);
-    else setDisplayed(pickRandom(collection));
+    if (value.trim()) {
+      setDisplayed(value);
+    } else {
+      const pick = pickRandom(collection);
+      setDisplayed(pick);
+      if (typeof window !== "undefined" && pick) localStorage.setItem(displayedKey, pick);
+    }
   }
 
   function openDialog() {
@@ -91,7 +112,11 @@ export function QuotePanel() {
       .filter(Boolean);
     setCollection(next);
     if (typeof window !== "undefined") localStorage.setItem(COLLECTION_KEY, JSON.stringify(next));
-    if (!custom.trim()) setDisplayed(pickRandom(next));
+    if (!custom.trim()) {
+      const pick = pickRandom(next);
+      setDisplayed(pick);
+      if (typeof window !== "undefined" && pick) localStorage.setItem(displayedKey, pick);
+    }
     setDialogOpen(false);
   }
 
