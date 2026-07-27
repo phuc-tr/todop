@@ -42,7 +42,7 @@ import { ChevronLeft, ChevronRight, Moon, Sun, LogOut, Plus, Minus, X } from "lu
 import { toast } from "sonner";
 import { HabitIcon } from "./habitIcons";
 import { playSound } from "@/lib/sound";
-import { fireConfetti } from "@/lib/celebration";
+import { fireConfetti, fireMiniConfetti } from "@/lib/celebration";
 import {
   AlertDialog,
   AlertDialogAction,
