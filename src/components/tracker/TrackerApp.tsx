@@ -98,24 +98,28 @@ function ThemeColorPicker({
   value: ThemeColor;
   onChange: (color: ThemeColor) => void;
 }) {
+  const active = THEME_COLORS.find((c) => c.value === value) ?? THEME_COLORS[0];
   return (
-    <div className="flex items-center gap-1 rounded-md border border-border p-1">
-      {THEME_COLORS.map((c) => (
-        <button
-          key={c.value}
-          type="button"
-          onClick={() => onChange(c.value)}
-          aria-label={c.label}
-          aria-pressed={value === c.value}
-          title={c.label}
-          className={cn(
-            "h-4 w-4 rounded-full border border-black/10 transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            c.class,
-            value === c.value && "ring-2 ring-offset-1 ring-foreground scale-110",
-          )}
-        />
-      ))}
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" aria-label="Choose theme color" title="Theme color">
+          <span className={cn("h-4 w-4 rounded-full border border-black/10", active.class)} />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-[10rem]">
+        {THEME_COLORS.map((c) => (
+          <DropdownMenuItem
+            key={c.value}
+            onClick={() => onChange(c.value)}
+            className="cursor-pointer gap-2"
+          >
+            <span className={cn("h-4 w-4 rounded-full border border-black/10", c.class)} />
+            <span className="flex-1">{c.label}</span>
+            {value === c.value && <span className="text-xs text-muted-foreground">Active</span>}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
