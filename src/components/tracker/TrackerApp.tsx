@@ -49,6 +49,15 @@ type Todo = {
 type Entry = { id: string; habit_id: string; date: string; value: number };
 
 type DayCount = 3 | 4 | 7;
+
+function formatRange(start: Date, end: Date): string {
+  const sameMonth = start.getMonth() === end.getMonth();
+  const sameYear = start.getFullYear() === end.getFullYear();
+  if (sameMonth) return `${format(start, "MMM d")} – ${format(end, "d, yyyy")}`;
+  if (sameYear) return `${format(start, "MMM d")} – ${format(end, "MMM d, yyyy")}`;
+  return `${format(start, "MMM d, yyyy")} – ${format(end, "MMM d, yyyy")}`;
+}
+
 const DAY_COUNT_KEY = "tracker.dayCount";
 const VIEW_START_KEY = "tracker.viewStart";
 
