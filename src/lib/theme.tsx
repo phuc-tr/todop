@@ -1,21 +1,55 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
 type Theme = "light" | "dark";
-const ThemeCtx = createContext<{ theme: Theme; toggle: () => void }>({ theme: "light", toggle: () => {} });
+export type ThemeColor = "blue" | "green" | "purple" | "rose" | "orange" | "amber" | "mono";
+
+const ThemeCtx = createContext<{
+  theme: Theme;
+  themeColor: ThemeColor;
+  toggle: () => void;
+  setThemeColor: (color: ThemeColor) => void;
+}>({
+  theme: "light",
+  themeColor: "blue",
+  toggle: () => {},
+  setThemeColor: () => {},
+});
+
+const THEME_KEY = "theme";
+const THEME_COLOR_KEY = "themeColor";
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>("light");
+  const [themeColor, setThemeColorState] = useState<ThemeColor>("blue");
+
   useEffect(() => {
-    const stored = localStorage.getItem("theme") as Theme | null;
-    const initial = stored ?? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-    setTheme(initial);
+    const storedTheme = localStorage.getItem(THEME_KEY) as Theme | null;
+    const storedColor = localStorage.getItem(THEME_COLOR_KEY) as ThemeColor | null;
+    const initialTheme =
+      storedTheme ?? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    setTheme(initialTheme);
+    if (storedColor) setThemeColorState(storedColor);
   }, []);
+
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
-    localStorage.setItem("theme", theme);
+    localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme-color", themeColor);
+    localStorage.setItem(THEME_COLOR_KEY, themeColor);
+  }, [themeColor]);
+
   return (
-    <ThemeCtx.Provider value={{ theme, toggle: () => setTheme((t) => (t === "light" ? "dark" : "light")) }}>
+    <ThemeCtx.Provider
+      value={{
+        theme,
+        themeColor,
+        toggle: () => setTheme((t) => (t === "light" ? "dark" : "light")),
+        setThemeColor: setThemeColorState,
+      }}
+    >
       {children}
     </ThemeCtx.Provider>
   );

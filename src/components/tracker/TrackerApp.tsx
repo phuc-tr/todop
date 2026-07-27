@@ -28,7 +28,7 @@ import { SettingsDialog, type Habit } from "./SettingsDialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { useTheme } from "@/lib/theme";
+import { useTheme, type ThemeColor } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, Moon, Sun, LogOut, Plus, X, GripVertical } from "lucide-react";
 import { toast } from "sonner";
@@ -72,10 +72,48 @@ function initialViewStart(count: DayCount): Date {
   return new Date(today.getFullYear(), today.getMonth(), today.getDate());
 }
 
+const THEME_COLORS: { value: ThemeColor; label: string; class: string }[] = [
+  { value: "blue", label: "Blue", class: "bg-[oklch(0.58_0.19_258)]" },
+  { value: "green", label: "Green", class: "bg-[oklch(0.55_0.18_150)]" },
+  { value: "purple", label: "Purple", class: "bg-[oklch(0.58_0.2_285)]" },
+  { value: "rose", label: "Rose", class: "bg-[oklch(0.58_0.2_20)]" },
+  { value: "orange", label: "Orange", class: "bg-[oklch(0.6_0.19_45)]" },
+  { value: "amber", label: "Amber", class: "bg-[oklch(0.62_0.17_80)]" },
+  { value: "mono", label: "Black & white", class: "bg-[conic-gradient(oklch(0.25_0_0)_0deg_180deg,oklch(0.95_0_0)_180deg_360deg)]" },
+];
+
+function ThemeColorPicker({
+  value,
+  onChange,
+}: {
+  value: ThemeColor;
+  onChange: (color: ThemeColor) => void;
+}) {
+  return (
+    <div className="flex items-center gap-1 rounded-md border border-border p-1">
+      {THEME_COLORS.map((c) => (
+        <button
+          key={c.value}
+          type="button"
+          onClick={() => onChange(c.value)}
+          aria-label={c.label}
+          aria-pressed={value === c.value}
+          title={c.label}
+          className={cn(
+            "h-4 w-4 rounded-full border border-black/10 transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            c.class,
+            value === c.value && "ring-2 ring-offset-1 ring-foreground scale-110",
+          )}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function TrackerApp({ userId }: { userId: string }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const { theme, toggle } = useTheme();
+  const { theme, toggle, themeColor, setThemeColor } = useTheme();
   const [dayCount, setDayCountState] = useState<DayCount>(() => loadDayCount());
   const [viewStart, setViewStart] = useState<Date>(() => {
     const count = loadDayCount();
@@ -483,6 +521,7 @@ export function TrackerApp({ userId }: { userId: string }) {
                 onDeleteHabit={(id) => deleteHabit.mutate(id)}
                 onSetTasksGoal={(g) => setTasksGoal.mutate(g)}
               />
+              <ThemeColorPicker value={themeColor} onChange={setThemeColor} />
               <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
                 {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               </Button>
