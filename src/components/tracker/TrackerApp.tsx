@@ -581,7 +581,7 @@ export function TrackerApp({ userId }: { userId: string }) {
               </Button>
             </div>
           </div>
-          <div className="flex flex-col-reverse sm:flex-row justify-end items-stretch sm:items-start gap-3">
+          <div className="flex flex-col-reverse sm:flex-row justify-end items-stretch gap-3">
             <QuotePanel />
             <StatsPanel
               tasksDone={tasksDone}
