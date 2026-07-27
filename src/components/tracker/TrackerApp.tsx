@@ -72,6 +72,44 @@ function initialViewStart(count: DayCount): Date {
   return new Date(today.getFullYear(), today.getMonth(), today.getDate());
 }
 
+const THEME_COLORS: { value: ThemeColor; label: string; class: string }[] = [
+  { value: "blue", label: "Blue", class: "bg-[oklch(0.58_0.19_258)]" },
+  { value: "green", label: "Green", class: "bg-[oklch(0.55_0.18_150)]" },
+  { value: "purple", label: "Purple", class: "bg-[oklch(0.58_0.2_285)]" },
+  { value: "rose", label: "Rose", class: "bg-[oklch(0.58_0.2_20)]" },
+  { value: "orange", label: "Orange", class: "bg-[oklch(0.6_0.19_45)]" },
+  { value: "amber", label: "Amber", class: "bg-[oklch(0.62_0.17_80)]" },
+  { value: "mono", label: "Black & white", class: "bg-[conic-gradient(oklch(0.25_0_0)_0deg_180deg,oklch(0.95_0_0)_180deg_360deg)]" },
+];
+
+function ThemeColorPicker({
+  value,
+  onChange,
+}: {
+  value: ThemeColor;
+  onChange: (color: ThemeColor) => void;
+}) {
+  return (
+    <div className="flex items-center gap-1 rounded-md border border-border p-1">
+      {THEME_COLORS.map((c) => (
+        <button
+          key={c.value}
+          type="button"
+          onClick={() => onChange(c.value)}
+          aria-label={c.label}
+          aria-pressed={value === c.value}
+          title={c.label}
+          className={cn(
+            "h-4 w-4 rounded-full border border-black/10 transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            c.class,
+            value === c.value && "ring-1.5 ring-offset-1 ring-foreground scale-110",
+          )}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function TrackerApp({ userId }: { userId: string }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
