@@ -31,7 +31,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useTheme, type ThemeColor } from "@/lib/theme";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, Moon, Sun, LogOut, Plus, Minus, X, GripVertical } from "lucide-react";
+import { ChevronLeft, ChevronRight, Moon, Sun, LogOut, Plus, Minus, X } from "lucide-react";
 import { toast } from "sonner";
 import { HabitIcon } from "./habitIcons";
 import {
