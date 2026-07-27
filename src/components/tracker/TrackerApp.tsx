@@ -898,6 +898,7 @@ function TodoRow({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: todo.id });
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(todo.title);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   useEffect(() => setDraft(todo.title), [todo.title]);
 
   const style = {
@@ -943,12 +944,34 @@ function TodoRow({
         </button>
       )}
       <button
-        onClick={() => onDelete(todo)}
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => { e.stopPropagation(); setConfirmOpen(true); }}
         className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
         aria-label="Delete"
       >
         <X className="h-3.5 w-3.5" />
       </button>
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this task?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {todo.title
+                ? <>“{todo.title}” will be permanently removed.</>
+                : <>This task will be permanently removed.</>}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { onDelete(todo); setConfirmOpen(false); }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
