@@ -38,7 +38,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useTheme, type ThemeColor } from "@/lib/theme";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, Moon, Sun, LogOut, Plus, Minus, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Moon, Sun, LogOut, Plus, Minus, X } from "lucide-react";
 import { toast } from "sonner";
 import { HabitIcon } from "./habitIcons";
 import { playSound } from "@/lib/sound";
@@ -558,12 +558,18 @@ export function TrackerApp({ userId }: { userId: string }) {
               </span>
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" onClick={() => setViewStart(addDays(viewStart, -dayCount))} aria-label="Previous">
+              <div className="flex items-center gap-0.5">
+                <Button variant="ghost" size="icon" onClick={() => setViewStart(addDays(viewStart, -dayCount))} aria-label="Previous span">
+                  <ChevronsLeft className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => setViewStart(addDays(viewStart, -1))} aria-label="Previous day">
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="icon" onClick={() => setViewStart(addDays(viewStart, dayCount))} aria-label="Next">
+                <Button variant="ghost" size="icon" onClick={() => setViewStart(addDays(viewStart, 1))} aria-label="Next day">
                   <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => setViewStart(addDays(viewStart, dayCount))} aria-label="Next span">
+                  <ChevronsRight className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="outline"
