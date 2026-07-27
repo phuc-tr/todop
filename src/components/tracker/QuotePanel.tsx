@@ -200,7 +200,7 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
       }
     >
       {bgUrl && (
-        <div className="absolute -inset-px rounded-lg bg-background/30 dark:bg-background/45 backdrop-blur-[2px] pointer-events-none" />
+        <div className="absolute -inset-px rounded-lg bg-background/30 dark:bg-background/45 pointer-events-none" />
       )}
       <div className="relative flex-1 min-w-0 flex flex-col overflow-hidden">
         {mode === "text" ? (
