@@ -28,7 +28,7 @@ import { SettingsDialog, type Habit } from "./SettingsDialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { useTheme } from "@/lib/theme";
+import { useTheme, type ThemeColor } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, Moon, Sun, LogOut, Plus, X, GripVertical } from "lucide-react";
 import { toast } from "sonner";
