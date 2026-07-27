@@ -37,7 +37,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useTheme, type ThemeColor } from "@/lib/theme";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, Moon, Sun, LogOut, Plus, Minus, X, Palette } from "lucide-react";
+import { ChevronLeft, ChevronRight, Moon, Sun, LogOut, Plus, Minus, X } from "lucide-react";
 import { toast } from "sonner";
 import { HabitIcon } from "./habitIcons";
 import {
