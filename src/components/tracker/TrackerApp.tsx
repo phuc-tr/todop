@@ -25,7 +25,6 @@ import { addDays, format, isSameDay } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { StatsPanel } from "./StatsPanel";
 import { SettingsDialog, type Habit } from "./SettingsDialog";
-import { WeeklyFocusCard, type WeeklyFocus } from "./WeeklyFocusCard";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -57,7 +56,6 @@ type Todo = {
 };
 type Entry = { id: string; habit_id: string; date: string; value: number };
 type DayNote = { date: string; content: string };
-type WeeklyNote = { user_id: string; header: string; body: string; banner_url: string | null };
 
 type DayCount = 3 | 4 | 7;
 
@@ -222,25 +220,6 @@ export function TrackerApp({ userId }: { userId: string }) {
     },
   });
 
-  const weeklyNotesKey = ["weekly_notes", userId];
-  const weeklyNotesQuery = useQuery({
-    queryKey: weeklyNotesKey,
-    queryFn: async (): Promise<WeeklyNote> => {
-      const { data, error } = await supabase
-        .from("weekly_notes")
-        .select("user_id, header, body, banner_url")
-        .eq("user_id", userId)
-        .maybeSingle();
-      if (error) throw error;
-      if (!data) {
-        const row: WeeklyNote = { user_id: userId, header: "Weekly Focus", body: "", banner_url: null };
-        await supabase.from("weekly_notes").insert(row);
-        return row;
-      }
-      return data as WeeklyNote;
-    },
-  });
-
   const settingsQuery = useQuery({
     queryKey: ["settings", userId],
     queryFn: async () => {
@@ -262,7 +241,6 @@ export function TrackerApp({ userId }: { userId: string }) {
   const habits = habitsQuery.data ?? [];
   const entries = entriesQuery.data ?? [];
   const notes = notesQuery.data ?? [];
-  const weeklyNote = weeklyNotesQuery.data ?? { user_id: userId, header: "Weekly Focus", body: "", banner_url: null };
   const tasksGoal = settingsQuery.data?.weekly_task_goal ?? 20;
 
   function setTodos(fn: (prev: Todo[]) => Todo[]) {
@@ -513,34 +491,6 @@ export function TrackerApp({ userId }: { userId: string }) {
     },
   });
 
-  const upsertWeeklyNote = useMutation({
-    mutationFn: async (next: WeeklyFocus) => {
-      const { error } = await supabase
-        .from("weekly_notes")
-        .upsert({ user_id: userId, header: next.header, body: next.body, banner_url: next.bannerUrl });
-      if (error) throw error;
-    },
-    onMutate: async (next) => {
-      await qc.cancelQueries({ queryKey: weeklyNotesKey });
-      const prev = qc.getQueryData<WeeklyNote>(weeklyNotesKey);
-      qc.setQueryData<WeeklyNote>(weeklyNotesKey, {
-        user_id: userId,
-        header: next.header,
-        body: next.body,
-        banner_url: next.bannerUrl,
-      });
-      return { prev };
-    },
-    onError: (_e, _v, ctx) => {
-      if (ctx?.prev) qc.setQueryData(weeklyNotesKey, ctx.prev);
-      toast.error("Weekly focus save failed");
-    },
-  });
-
-  function handleWeeklyNoteChange(next: WeeklyFocus) {
-    upsertWeeklyNote.mutate(next);
-  }
-
   const tasksDone = todos.filter((t) => t.completed).length;
   const habitStats = habits.map((h) => {
     const sum = entries.filter((e) => e.habit_id === h.id).reduce((s, e) => s + Number(e.value), 0);
@@ -630,18 +580,7 @@ export function TrackerApp({ userId }: { userId: string }) {
               </Button>
             </div>
           </div>
-          <div className="flex flex-col sm:flex-row items-start gap-3">
-            <div className="flex-1 min-w-0 w-full">
-              <WeeklyFocusCard
-                userId={userId}
-                value={{
-                  header: weeklyNote.header,
-                  body: weeklyNote.body,
-                  bannerUrl: weeklyNote.banner_url,
-                }}
-                onChange={handleWeeklyNoteChange}
-              />
-            </div>
+          <div className="flex justify-end">
             <StatsPanel
               tasksDone={tasksDone}
               tasksGoal={tasksGoal}

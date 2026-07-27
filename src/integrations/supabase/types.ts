@@ -157,30 +157,6 @@ export type Database = {
         }
         Relationships: []
       }
-      weekly_notes: {
-        Row: {
-          banner_url: string | null
-          body: string
-          header: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          banner_url?: string | null
-          body?: string
-          header?: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          banner_url?: string | null
-          body?: string
-          header?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
     }
     Views: {
       [_ in never]: never
