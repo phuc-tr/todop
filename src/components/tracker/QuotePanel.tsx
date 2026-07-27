@@ -96,8 +96,8 @@ export function QuotePanel() {
   }
 
   return (
-    <div className="rounded-lg border border-border bg-card px-4 py-3 shadow-sm w-full sm:flex-1 sm:max-w-md flex items-start gap-2 group">
-      <div className="flex-1 min-w-0">
+    <div className="rounded-lg border border-border bg-card px-4 py-3 shadow-sm w-full h-full sm:flex-1 flex items-stretch gap-2 group">
+      <div className="flex-1 min-w-0 flex flex-col">
         {editing ? (
           <Textarea
             autoFocus
@@ -116,7 +116,7 @@ export function QuotePanel() {
               }
             }}
             placeholder="Write anything… (⌘/Ctrl+Enter to save, Esc to cancel)"
-            className="min-h-[60px] text-sm resize-none"
+            className="flex-1 min-h-0 text-sm resize-none"
           />
         ) : (
           <button
@@ -127,7 +127,7 @@ export function QuotePanel() {
             }}
             title="Click to write your own"
             className={cn(
-              "block w-full text-left text-sm leading-snug rounded px-1 -mx-1 py-0.5 hover:bg-muted/50 transition-colors",
+              "flex-1 w-full text-left text-sm leading-snug rounded px-1 -mx-1 py-0.5 hover:bg-muted/50 transition-colors",
               custom.trim() ? "text-foreground" : "text-muted-foreground italic",
             )}
           >
