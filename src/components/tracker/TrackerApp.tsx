@@ -633,7 +633,7 @@ export function TrackerApp({ userId }: { userId: string }) {
       <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <main className="mx-auto max-w-[1600px] px-2 sm:px-4 py-4">
           <div
-            className="flex md:grid gap-px bg-border rounded-lg overflow-hidden overflow-x-auto snap-x snap-mandatory md:snap-none"
+            className="flex md:grid gap-px bg-border rounded-lg overflow-x-auto md:overflow-hidden snap-x snap-mandatory md:snap-none -mx-2 sm:mx-0 px-2 sm:px-0 scroll-px-2 sm:scroll-px-0"
             style={{ gridTemplateColumns: `repeat(${dayCount}, minmax(0, 1fr))` }}
           >
             {days.map((day) => {
@@ -733,7 +733,7 @@ function DayColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        "bg-background min-w-[220px] md:min-w-0 flex-1 snap-start flex flex-col group/col",
+        "bg-background w-[88vw] max-w-[360px] shrink-0 md:w-auto md:max-w-none md:min-w-0 md:flex-1 snap-start flex flex-col group/col",
         isOver && "bg-primary-soft/40",
       )}
     >
