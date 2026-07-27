@@ -41,6 +41,26 @@ import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, Moon, Sun, LogOut, Plus, Minus, X } from "lucide-react";
 import { toast } from "sonner";
 import { HabitIcon } from "./habitIcons";
+import { playSound } from "@/lib/sound";
+import { fireConfetti } from "@/lib/celebration";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   getWeekDays,
   getWeekStart,
@@ -315,8 +335,21 @@ export function TrackerApp({ userId }: { userId: string }) {
   });
 
   function handleToggle(t: Todo) {
-    setTodos((prev) => prev.map((x) => (x.id === t.id ? { ...x, completed: !t.completed } : x)));
-    if (!t.id.startsWith("tmp-")) updateTodo.mutate({ id: t.id, patch: { completed: !t.completed } });
+    const nextCompleted = !t.completed;
+    const prevDone = todos.filter((x) => x.completed).length;
+    const nextDone = prevDone + (nextCompleted ? 1 : -1);
+    setTodos((prev) => prev.map((x) => (x.id === t.id ? { ...x, completed: nextCompleted } : x)));
+    if (!t.id.startsWith("tmp-")) updateTodo.mutate({ id: t.id, patch: { completed: nextCompleted } });
+    if (nextCompleted) {
+      playSound("complete");
+      if (tasksGoal > 0 && prevDone < tasksGoal && nextDone >= tasksGoal) {
+        fireConfetti();
+        setGoalCelebration(true);
+        playSound("goal");
+      }
+    } else {
+      playSound("uncomplete");
+    }
   }
   function handleEditTitle(t: Todo, title: string) {
     setTodos((prev) => prev.map((x) => (x.id === t.id ? { ...x, title } : x)));
@@ -325,7 +358,10 @@ export function TrackerApp({ userId }: { userId: string }) {
   function handleDelete(t: Todo) {
     setTodos((prev) => prev.filter((x) => x.id !== t.id));
     if (!t.id.startsWith("tmp-")) deleteTodo.mutate(t.id);
+    playSound("delete");
   }
+
+  const [goalCelebration, setGoalCelebration] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -634,6 +670,20 @@ export function TrackerApp({ userId }: { userId: string }) {
           ) : null}
         </DragOverlay>
       </DndContext>
+
+      <Dialog open={goalCelebration} onOpenChange={setGoalCelebration}>
+        <DialogContent className="max-w-sm text-center">
+          <DialogHeader>
+            <DialogTitle className="text-center text-xl">🎉 Weekly goal reached!</DialogTitle>
+            <DialogDescription className="text-center">
+              You've completed {tasksGoal} {tasksGoal === 1 ? "task" : "tasks"} this week. Nice work.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="sm:justify-center">
+            <Button onClick={() => setGoalCelebration(false)}>Keep going</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -848,6 +898,7 @@ function TodoRow({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: todo.id });
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(todo.title);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   useEffect(() => setDraft(todo.title), [todo.title]);
 
   const style = {
@@ -893,12 +944,34 @@ function TodoRow({
         </button>
       )}
       <button
-        onClick={() => onDelete(todo)}
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => { e.stopPropagation(); setConfirmOpen(true); }}
         className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
         aria-label="Delete"
       >
         <X className="h-3.5 w-3.5" />
       </button>
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this task?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {todo.title
+                ? <>“{todo.title}” will be permanently removed.</>
+                : <>This task will be permanently removed.</>}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { onDelete(todo); setConfirmOpen(false); }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

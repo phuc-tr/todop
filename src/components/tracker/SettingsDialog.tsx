@@ -3,10 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Switch } from "@/components/ui/switch";
 import { Settings, Trash2, Plus, Smile } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { HABIT_ICON_KEYS, HABIT_ICONS, HabitIcon } from "./habitIcons";
 import { cn } from "@/lib/utils";
+import { getSoundEnabled, setSoundEnabled } from "@/lib/sound";
 
 export type Habit = {
   id: string;
@@ -93,6 +95,12 @@ export function SettingsDialog({
   const [goal, setGoal] = useState("");
   const [unit, setUnit] = useState("");
   const [icon, setIcon] = useState("");
+  const [sound, setSound] = useState<boolean>(() => getSoundEnabled());
+  useEffect(() => {
+    const handler = (e: Event) => setSound((e as CustomEvent<boolean>).detail);
+    window.addEventListener("tracker:sound-changed", handler);
+    return () => window.removeEventListener("tracker:sound-changed", handler);
+  }, []);
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -112,6 +120,17 @@ export function SettingsDialog({
               value={tasksGoal}
               onChange={(e) => onSetTasksGoal(parseInt(e.target.value) || 0)}
               className="mt-1"
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="text-xs">Sound effects</Label>
+              <p className="text-[11px] text-muted-foreground">Play a chime on completion and delete.</p>
+            </div>
+            <Switch
+              checked={sound}
+              onCheckedChange={(v) => { setSound(v); setSoundEnabled(v); }}
+              aria-label="Toggle sound effects"
             />
           </div>
           <div>
