@@ -32,6 +32,7 @@ import { useTheme, type ThemeColor } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, Moon, Sun, LogOut, Plus, X, GripVertical } from "lucide-react";
 import { toast } from "sonner";
+import { HabitIcon } from "./habitIcons";
 import {
   getWeekDays,
   getWeekStart,
@@ -358,10 +359,10 @@ export function TrackerApp({ userId }: { userId: string }) {
   }
 
   const createHabit = useMutation({
-    mutationFn: async ({ name, weekly_goal }: { name: string; weekly_goal: number }) => {
+    mutationFn: async ({ name, weekly_goal, unit, icon }: { name: string; weekly_goal: number; unit: string; icon: string }) => {
       const { error } = await supabase
         .from("habits")
-        .insert({ user_id: userId, name, weekly_goal, sort_order: habits.length });
+        .insert({ user_id: userId, name, weekly_goal, unit, icon, sort_order: habits.length });
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["habits", userId] }),
@@ -516,7 +517,7 @@ export function TrackerApp({ userId }: { userId: string }) {
               <SettingsDialog
                 habits={habits}
                 tasksGoal={tasksGoal}
-                onCreateHabit={(name, g) => createHabit.mutate({ name, weekly_goal: g })}
+                onCreateHabit={(input) => createHabit.mutate(input)}
                 onUpdateHabit={(id, patch) => updateHabit.mutate({ id, patch })}
                 onDeleteHabit={(id) => deleteHabit.mutate(id)}
                 onSetTasksGoal={(g) => setTasksGoal.mutate(g)}
