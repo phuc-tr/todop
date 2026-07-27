@@ -113,7 +113,7 @@ function ThemeColorPicker({
 export function TrackerApp({ userId }: { userId: string }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const { theme, toggle } = useTheme();
+  const { theme, toggle, themeColor, setThemeColor } = useTheme();
   const [dayCount, setDayCountState] = useState<DayCount>(() => loadDayCount());
   const [viewStart, setViewStart] = useState<Date>(() => {
     const count = loadDayCount();
