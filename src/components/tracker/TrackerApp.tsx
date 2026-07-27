@@ -754,12 +754,12 @@ function DayNoteArea({ value, onCommit }: { value: string; onCommit: (v: string)
   return (
     <div className="border-t border-border px-2 py-2">
       <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Notes</div>
-      <Textarea
+      <textarea
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={() => { if (draft !== value) onCommit(draft); }}
         placeholder="Add a note…"
-        className="min-h-[56px] text-xs resize-none bg-transparent"
+        className="w-full min-h-[56px] text-xs resize-none bg-transparent border-0 outline-none p-0 placeholder:text-muted-foreground/50 focus:outline-none"
       />
     </div>
   );
