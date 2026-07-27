@@ -521,6 +521,7 @@ export function TrackerApp({ userId }: { userId: string }) {
                 onDeleteHabit={(id) => deleteHabit.mutate(id)}
                 onSetTasksGoal={(g) => setTasksGoal.mutate(g)}
               />
+              <ThemeColorPicker value={themeColor} onChange={setThemeColor} />
               <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
                 {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               </Button>
