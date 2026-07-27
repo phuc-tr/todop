@@ -84,17 +84,43 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
       setDisplayed(pick);
       if (pick) localStorage.setItem(displayedKey, pick);
     }
-    // Load background for this week
+    // Load background for this week from DB (sync across devices),
+    // migrating any legacy localStorage path if present.
     setBgUrl(null);
-    const savedPath = localStorage.getItem(bgPathKey);
-    if (savedPath) {
-      supabase.storage
+    let cancelled = false;
+    (async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData.user?.id;
+      let path: string | null = null;
+      if (userId) {
+        const { data: row } = await supabase
+          .from("weekly_backgrounds")
+          .select("path")
+          .eq("user_id", userId)
+          .eq("week_key", weekKey)
+          .maybeSingle();
+        path = row?.path ?? null;
+        if (!path) {
+          const legacy = localStorage.getItem(bgPathKey);
+          if (legacy) {
+            path = legacy;
+            await supabase
+              .from("weekly_backgrounds")
+              .upsert({ user_id: userId, week_key: weekKey, path: legacy });
+          }
+        }
+      } else {
+        path = localStorage.getItem(bgPathKey);
+      }
+      if (cancelled || !path) return;
+      const { data: signed, error } = await supabase.storage
         .from(BUCKET)
-        .createSignedUrl(savedPath, 60 * 60 * 24 * 7)
-        .then(({ data, error }) => {
-          if (!error && data?.signedUrl) setBgUrl(data.signedUrl);
-        });
-    }
+        .createSignedUrl(path, 60 * 60 * 24 * 7);
+      if (!cancelled && !error && signed?.signedUrl) setBgUrl(signed.signedUrl);
+    })();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weekKey]);
 
@@ -154,11 +180,21 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
         .from(BUCKET)
         .upload(path, file, { upsert: true, contentType: file.type });
       if (uploadErr) throw uploadErr;
-      // Remove previous path if different extension
-      const prev = localStorage.getItem(bgPathKey);
+      // Remove previous stored path if different (e.g. different extension)
+      const { data: prevRow } = await supabase
+        .from("weekly_backgrounds")
+        .select("path")
+        .eq("user_id", userData.user.id)
+        .eq("week_key", weekKey)
+        .maybeSingle();
+      const prev = prevRow?.path ?? localStorage.getItem(bgPathKey);
       if (prev && prev !== path) {
         await supabase.storage.from(BUCKET).remove([prev]).catch(() => {});
       }
+      const { error: upsertErr } = await supabase
+        .from("weekly_backgrounds")
+        .upsert({ user_id: userData.user.id, week_key: weekKey, path });
+      if (upsertErr) throw upsertErr;
       localStorage.setItem(bgPathKey, path);
       const { data: signed, error: signErr } = await supabase.storage
         .from(BUCKET)
@@ -175,9 +211,25 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
   }
 
   async function clearBackground() {
-    const path = localStorage.getItem(bgPathKey);
-    localStorage.removeItem(bgPathKey);
     setBgUrl(null);
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData.user?.id;
+    let path: string | null = localStorage.getItem(bgPathKey);
+    if (userId) {
+      const { data: row } = await supabase
+        .from("weekly_backgrounds")
+        .select("path")
+        .eq("user_id", userId)
+        .eq("week_key", weekKey)
+        .maybeSingle();
+      if (row?.path) path = row.path;
+      await supabase
+        .from("weekly_backgrounds")
+        .delete()
+        .eq("user_id", userId)
+        .eq("week_key", weekKey);
+    }
+    localStorage.removeItem(bgPathKey);
     if (path) {
       await supabase.storage.from(BUCKET).remove([path]).catch(() => {});
     }

@@ -157,6 +157,27 @@ export type Database = {
         }
         Relationships: []
       }
+      weekly_backgrounds: {
+        Row: {
+          path: string
+          updated_at: string
+          user_id: string
+          week_key: string
+        }
+        Insert: {
+          path: string
+          updated_at?: string
+          user_id: string
+          week_key: string
+        }
+        Update: {
+          path?: string
+          updated_at?: string
+          user_id?: string
+          week_key?: string
+        }
+        Relationships: []
+      }
       weekly_notes: {
         Row: {
           banner_url: string | null
