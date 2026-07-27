@@ -32,6 +32,7 @@ import { useTheme, type ThemeColor } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, Moon, Sun, LogOut, Plus, X, GripVertical } from "lucide-react";
 import { toast } from "sonner";
+import { HabitIcon } from "./habitIcons";
 import {
   getWeekDays,
   getWeekStart,
@@ -358,10 +359,10 @@ export function TrackerApp({ userId }: { userId: string }) {
   }
 
   const createHabit = useMutation({
-    mutationFn: async ({ name, weekly_goal }: { name: string; weekly_goal: number }) => {
+    mutationFn: async ({ name, weekly_goal, unit, icon }: { name: string; weekly_goal: number; unit: string; icon: string }) => {
       const { error } = await supabase
         .from("habits")
-        .insert({ user_id: userId, name, weekly_goal, sort_order: habits.length });
+        .insert({ user_id: userId, name, weekly_goal, unit, icon, sort_order: habits.length });
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["habits", userId] }),
@@ -444,7 +445,7 @@ export function TrackerApp({ userId }: { userId: string }) {
   const tasksDone = todos.filter((t) => t.completed).length;
   const habitStats = habits.map((h) => {
     const sum = entries.filter((e) => e.habit_id === h.id).reduce((s, e) => s + Number(e.value), 0);
-    return { id: h.id, name: h.name, sum, goal: h.weekly_goal };
+    return { id: h.id, name: h.name, sum, goal: h.weekly_goal, unit: h.unit, icon: h.icon };
   });
 
   async function signOut() {
@@ -516,7 +517,7 @@ export function TrackerApp({ userId }: { userId: string }) {
               <SettingsDialog
                 habits={habits}
                 tasksGoal={tasksGoal}
-                onCreateHabit={(name, g) => createHabit.mutate({ name, weekly_goal: g })}
+                onCreateHabit={(input) => createHabit.mutate(input)}
                 onUpdateHabit={(id, patch) => updateHabit.mutate({ id, patch })}
                 onDeleteHabit={(id) => deleteHabit.mutate(id)}
                 onSetTasksGoal={(g) => setTasksGoal.mutate(g)}
@@ -679,7 +680,13 @@ function DayColumn({
             const entry = entries.find((e) => e.habit_id === h.id && e.date === dateKey);
             return (
               <div key={h.id} className="flex items-center gap-2">
-                <div className="text-[11px] text-muted-foreground truncate flex-1" title={h.name}>{h.name}</div>
+                <div
+                  className="text-[11px] text-muted-foreground truncate flex-1 flex items-center gap-1"
+                  title={h.unit ? `${h.name} (${h.unit})` : h.name}
+                >
+                  {h.icon && <HabitIcon name={h.icon} className="h-3 w-3 shrink-0" />}
+                  <span className="truncate">{h.name}</span>
+                </div>
                 <HabitInput
                   initialValue={entry ? String(entry.value) : ""}
                   onCommit={(v) => onEntry(h.id, dateKey, v)}

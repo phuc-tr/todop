@@ -2,8 +2,9 @@ import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { HabitIcon } from "./habitIcons";
 
-type HabitStat = { id: string; name: string; sum: number; goal: number };
+type HabitStat = { id: string; name: string; sum: number; goal: number; unit?: string; icon?: string };
 
 export function StatsPanel({
   tasksDone,
@@ -64,12 +65,16 @@ export function StatsPanel({
         {habitStats.map((h) => {
           const pct = h.goal > 0 ? Math.min(100, (h.sum / h.goal) * 100) : 0;
           const done = h.goal > 0 && h.sum >= h.goal;
+          const unit = h.unit?.trim();
           return (
             <div key={h.id}>
               <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span className="truncate pr-2">{h.name}</span>
+                <span className="truncate pr-2 flex items-center gap-1.5 min-w-0">
+                  {h.icon && <HabitIcon name={h.icon} className="h-3 w-3 shrink-0" />}
+                  <span className="truncate">{h.name}</span>
+                </span>
                 <span className={cn("tabular-nums", done && "text-success font-medium")}>
-                  {h.sum} / {h.goal}
+                  {h.sum} / {h.goal}{unit ? ` ${unit}` : ""}
                 </span>
               </div>
               <Progress value={pct} className={cn("h-1.5 mt-1", done && "[&>div]:bg-success")} />

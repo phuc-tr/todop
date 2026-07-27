@@ -52,25 +52,31 @@ export type Database = {
       habits: {
         Row: {
           created_at: string
+          icon: string
           id: string
           name: string
           sort_order: number
+          unit: string
           user_id: string
           weekly_goal: number
         }
         Insert: {
           created_at?: string
+          icon?: string
           id?: string
           name: string
           sort_order?: number
+          unit?: string
           user_id: string
           weekly_goal?: number
         }
         Update: {
           created_at?: string
+          icon?: string
           id?: string
           name?: string
           sort_order?: number
+          unit?: string
           user_id?: string
           weekly_goal?: number
         }
