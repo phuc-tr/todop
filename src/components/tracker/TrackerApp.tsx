@@ -102,7 +102,7 @@ function ThemeColorPicker({
           className={cn(
             "h-4 w-4 rounded-full border border-black/10 transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
             c.class,
-            value === c.value && "ring-1.5 ring-offset-1 ring-foreground scale-110",
+            value === c.value && "ring-2 ring-offset-1 ring-foreground scale-110",
           )}
         />
       ))}
