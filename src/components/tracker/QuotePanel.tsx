@@ -185,7 +185,10 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
 
   return (
     <div
-      className="relative rounded-lg border border-border bg-card px-4 py-3 shadow-sm w-full sm:flex-1 flex items-stretch gap-2 group overflow-hidden min-h-0"
+      className={cn(
+        "relative rounded-lg border bg-card px-4 py-3 shadow-sm w-full sm:flex-1 flex items-stretch gap-2 group overflow-hidden min-h-0",
+        bgUrl ? "border-transparent" : "border-border",
+      )}
       style={
         bgUrl
           ? {
@@ -197,7 +200,7 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
       }
     >
       {bgUrl && (
-        <div className="absolute inset-0 bg-background/60 dark:bg-background/70 backdrop-blur-[2px] pointer-events-none" />
+        <div className="absolute inset-0 bg-background/30 dark:bg-background/45 backdrop-blur-[2px] pointer-events-none" />
       )}
       <div className="relative flex-1 min-w-0 flex flex-col overflow-hidden">
         {mode === "text" ? (
