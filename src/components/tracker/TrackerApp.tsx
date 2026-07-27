@@ -25,6 +25,7 @@ import { addDays, format, isSameDay } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { StatsPanel } from "./StatsPanel";
 import { SettingsDialog, type Habit } from "./SettingsDialog";
+import { QuotePanel } from "./QuotePanel";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -580,7 +581,8 @@ export function TrackerApp({ userId }: { userId: string }) {
               </Button>
             </div>
           </div>
-          <div className="flex justify-end">
+          <div className="flex flex-col-reverse sm:flex-row justify-end items-stretch sm:items-start gap-3">
+            <QuotePanel />
             <StatsPanel
               tasksDone={tasksDone}
               tasksGoal={tasksGoal}
