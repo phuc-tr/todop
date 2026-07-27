@@ -6,10 +6,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Dices, Pencil, ImagePlus, X } from "lucide-react";
+import { Dices, Pencil, ImagePlus, X, Quote, List } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -18,6 +17,7 @@ const COLLECTION_KEY = "tracker.quotes.collection";
 const CUSTOM_PREFIX = "tracker.quotes.custom.";
 const DISPLAYED_PREFIX = "tracker.quotes.displayed.";
 const BG_PATH_PREFIX = "tracker.quotes.bg.path.";
+const MODE_PREFIX = "tracker.quotes.mode.";
 const BUCKET = "weekly-banners";
 
 const DEFAULT_QUOTES = [
@@ -57,11 +57,11 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
   const customKey = CUSTOM_PREFIX + weekKey;
   const displayedKey = DISPLAYED_PREFIX + weekKey;
   const bgPathKey = BG_PATH_PREFIX + weekKey;
+  const modeKey = MODE_PREFIX + weekKey;
   const [collection, setCollection] = useState<string[]>(() => loadCollection());
   const [custom, setCustom] = useState<string>("");
   const [displayed, setDisplayed] = useState<string>("");
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState("");
+  const [mode, setMode] = useState<"quote" | "text">("quote");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogDraft, setDialogDraft] = useState("");
   const [bgUrl, setBgUrl] = useState<string | null>(null);
@@ -72,17 +72,17 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
     if (typeof window === "undefined") return;
     const savedCustom = localStorage.getItem(customKey) ?? "";
     setCustom(savedCustom);
-    if (savedCustom.trim()) {
-      setDisplayed(savedCustom);
+    const savedMode = localStorage.getItem(modeKey);
+    const initialMode: "quote" | "text" =
+      savedMode === "text" || (savedMode == null && savedCustom.trim()) ? "text" : "quote";
+    setMode(initialMode);
+    const savedDisplayed = localStorage.getItem(displayedKey);
+    if (savedDisplayed) {
+      setDisplayed(savedDisplayed);
     } else {
-      const savedDisplayed = localStorage.getItem(displayedKey);
-      if (savedDisplayed) {
-        setDisplayed(savedDisplayed);
-      } else {
-        const pick = pickRandom(collection);
-        setDisplayed(pick);
-        if (pick) localStorage.setItem(displayedKey, pick);
-      }
+      const pick = pickRandom(collection);
+      setDisplayed(pick);
+      if (pick) localStorage.setItem(displayedKey, pick);
     }
     // Load background for this week
     setBgUrl(null);
@@ -110,13 +110,11 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
       if (value.trim()) localStorage.setItem(customKey, value);
       else localStorage.removeItem(customKey);
     }
-    if (value.trim()) {
-      setDisplayed(value);
-    } else {
-      const pick = pickRandom(collection);
-      setDisplayed(pick);
-      if (typeof window !== "undefined" && pick) localStorage.setItem(displayedKey, pick);
-    }
+  }
+
+  function setModePersisted(next: "quote" | "text") {
+    setMode(next);
+    if (typeof window !== "undefined") localStorage.setItem(modeKey, next);
   }
 
   function openDialog() {
@@ -131,11 +129,9 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
       .filter(Boolean);
     setCollection(next);
     if (typeof window !== "undefined") localStorage.setItem(COLLECTION_KEY, JSON.stringify(next));
-    if (!custom.trim()) {
-      const pick = pickRandom(next);
-      setDisplayed(pick);
-      if (typeof window !== "undefined" && pick) localStorage.setItem(displayedKey, pick);
-    }
+    const pick = pickRandom(next);
+    setDisplayed(pick);
+    if (typeof window !== "undefined" && pick) localStorage.setItem(displayedKey, pick);
     setDialogOpen(false);
   }
 
@@ -204,41 +200,22 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
         <div className="absolute inset-0 bg-background/60 dark:bg-background/70 backdrop-blur-[2px] pointer-events-none" />
       )}
       <div className="relative flex-1 min-w-0 flex flex-col overflow-hidden">
-        {editing ? (
+        {mode === "text" ? (
           <Textarea
-            autoFocus
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={() => {
-              saveCustom(draft);
-              setEditing(false);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") {
-                setEditing(false);
-              }
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                (e.target as HTMLTextAreaElement).blur();
-              }
-            }}
-            placeholder="Write anything… (⌘/Ctrl+Enter to save, Esc to cancel)"
+            value={custom}
+            onChange={(e) => saveCustom(e.target.value)}
+            placeholder="Write anything…"
             className="flex-1 min-h-0 h-full text-sm resize-none bg-transparent"
           />
         ) : (
-          <button
-            type="button"
-            onClick={() => {
-              setDraft(custom);
-              setEditing(true);
-            }}
-            title="Click to write your own"
+          <div
             className={cn(
-              "flex-1 min-h-0 w-full text-left text-sm leading-snug rounded px-1 -mx-1 py-0.5 hover:bg-muted/50 transition-colors overflow-auto",
-              custom.trim() ? "text-foreground" : "text-muted-foreground italic",
+              "flex-1 min-h-0 w-full text-sm leading-snug px-1 -mx-1 py-0.5 overflow-auto",
+              displayed ? "text-foreground" : "text-muted-foreground italic",
             )}
           >
-            {displayed || "Click to write something, or shuffle for a quote →"}
-          </button>
+            {displayed || "No quotes yet — use the list icon to add some."}
+          </div>
         )}
       </div>
       <div className="relative flex flex-col gap-1 shrink-0 opacity-60 group-hover:opacity-100 transition-opacity">
@@ -266,21 +243,18 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
         >
           {bgUrl ? <X className="h-3.5 w-3.5" /> : <ImagePlus className="h-3.5 w-3.5" />}
         </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6"
-          onClick={() => {
-            if (custom.trim()) saveCustom("");
-            else shuffle();
-          }}
-          title={custom.trim() ? "Clear custom text and shuffle" : "Shuffle quote"}
-          aria-label="Shuffle quote"
-        >
-          <Dices className="h-3.5 w-3.5" />
-        </Button>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
+        {mode === "quote" && (
+          <>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={shuffle}
+              title="Shuffle quote"
+              aria-label="Shuffle quote"
+            >
+              <Dices className="h-3.5 w-3.5" />
+            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -289,9 +263,21 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
               title="Edit quote collection"
               aria-label="Edit quote collection"
             >
-              <Pencil className="h-3.5 w-3.5" />
+              <List className="h-3.5 w-3.5" />
             </Button>
-          </DialogTrigger>
+          </>
+        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6"
+          onClick={() => setModePersisted(mode === "text" ? "quote" : "text")}
+          title={mode === "text" ? "Switch to quotes" : "Switch to free text"}
+          aria-label={mode === "text" ? "Switch to quotes" : "Switch to free text"}
+        >
+          {mode === "text" ? <Quote className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />}
+        </Button>
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>Quote collection</DialogTitle>
