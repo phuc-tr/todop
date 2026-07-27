@@ -680,7 +680,13 @@ function DayColumn({
             const entry = entries.find((e) => e.habit_id === h.id && e.date === dateKey);
             return (
               <div key={h.id} className="flex items-center gap-2">
-                <div className="text-[11px] text-muted-foreground truncate flex-1" title={h.name}>{h.name}</div>
+                <div
+                  className="text-[11px] text-muted-foreground truncate flex-1 flex items-center gap-1"
+                  title={h.unit ? `${h.name} (${h.unit})` : h.name}
+                >
+                  {h.icon && <HabitIcon name={h.icon} className="h-3 w-3 shrink-0" />}
+                  <span className="truncate">{h.name}</span>
+                </div>
                 <HabitInput
                   initialValue={entry ? String(entry.value) : ""}
                   onCommit={(v) => onEntry(h.id, dateKey, v)}
