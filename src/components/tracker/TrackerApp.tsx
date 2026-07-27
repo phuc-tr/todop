@@ -420,78 +420,84 @@ export function TrackerApp({ userId }: { userId: string }) {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b border-border">
-        <div className="mx-auto max-w-[1600px] px-4 sm:px-6 py-3 flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-md bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold">W</div>
-            <h1 className="text-base font-medium tracking-tight">Weekly Tracker</h1>
+        <div className="mx-auto max-w-[1600px] px-4 sm:px-6 py-3 space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2">
+                <div className="h-7 w-7 rounded-md bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold">W</div>
+                <h1 className="text-base font-medium tracking-tight">Weekly Tracker</h1>
+              </div>
+              <span className="text-sm text-muted-foreground hidden sm:inline">
+                {formatRange(days[0], days[days.length - 1])}
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <div className="flex items-center gap-1">
+                <Button variant="ghost" size="icon" onClick={() => setViewStart(addDays(viewStart, -dayCount))} aria-label="Previous">
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => setViewStart(addDays(viewStart, dayCount))} aria-label="Next">
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="ml-1"
+                  onClick={() =>
+                    setViewStart(
+                      dayCount === 7
+                        ? getWeekStart(new Date())
+                        : (() => {
+                            const t = new Date();
+                            return new Date(t.getFullYear(), t.getMonth(), t.getDate());
+                          })(),
+                    )
+                  }
+                >
+                  Today
+                </Button>
+              </div>
+              <div className="flex items-center rounded-md border border-border overflow-hidden">
+                {([3, 4, 7] as const).map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => setDayCount(n)}
+                    className={cn(
+                      "px-2.5 py-1 text-xs font-medium transition-colors",
+                      dayCount === n
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-muted",
+                    )}
+                    aria-pressed={dayCount === n}
+                    aria-label={`Show ${n} days`}
+                  >
+                    {n}d
+                  </button>
+                ))}
+              </div>
+              <SettingsDialog
+                habits={habits}
+                tasksGoal={tasksGoal}
+                onCreateHabit={(name, g) => createHabit.mutate({ name, weekly_goal: g })}
+                onUpdateHabit={(id, patch) => updateHabit.mutate({ id, patch })}
+                onDeleteHabit={(id) => deleteHabit.mutate(id)}
+                onSetTasksGoal={(g) => setTasksGoal.mutate(g)}
+              />
+              <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
+                {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </Button>
+              <Button variant="ghost" size="icon" onClick={signOut} aria-label="Sign out">
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center gap-1 ml-2">
-            <Button variant="ghost" size="icon" onClick={() => setViewStart(addDays(viewStart, -dayCount))} aria-label="Previous">
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => setViewStart(addDays(viewStart, dayCount))} aria-label="Next">
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="ml-1"
-              onClick={() =>
-                setViewStart(
-                  dayCount === 7
-                    ? getWeekStart(new Date())
-                    : (() => {
-                        const t = new Date();
-                        return new Date(t.getFullYear(), t.getMonth(), t.getDate());
-                      })(),
-                )
-              }
-            >
-              Today
-            </Button>
-            <span className="ml-3 text-sm text-muted-foreground hidden sm:inline">
-              {formatRange(days[0], days[days.length - 1])}
-            </span>
-          </div>
-          <div className="flex items-center rounded-md border border-border overflow-hidden">
-            {([3, 4, 7] as const).map((n) => (
-              <button
-                key={n}
-                onClick={() => setDayCount(n)}
-                className={cn(
-                  "px-2.5 py-1 text-xs font-medium transition-colors",
-                  dayCount === n
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-muted",
-                )}
-                aria-pressed={dayCount === n}
-                aria-label={`Show ${n} days`}
-              >
-                {n}d
-              </button>
-            ))}
-          </div>
-          <div className="ml-auto flex items-center gap-2 flex-wrap">
+          <div className="flex justify-end">
             <StatsPanel
               tasksDone={tasksDone}
               tasksGoal={tasksGoal}
               habitStats={habitStats}
               onSetTasksGoal={(g) => setTasksGoal.mutate(g)}
             />
-            <SettingsDialog
-              habits={habits}
-              tasksGoal={tasksGoal}
-              onCreateHabit={(name, g) => createHabit.mutate({ name, weekly_goal: g })}
-              onUpdateHabit={(id, patch) => updateHabit.mutate({ id, patch })}
-              onDeleteHabit={(id) => deleteHabit.mutate(id)}
-              onSetTasksGoal={(g) => setTasksGoal.mutate(g)}
-            />
-            <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
-              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </Button>
-            <Button variant="ghost" size="icon" onClick={signOut} aria-label="Sign out">
-              <LogOut className="h-4 w-4" />
-            </Button>
           </div>
         </div>
       </header>
