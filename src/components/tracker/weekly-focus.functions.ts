@@ -32,7 +32,6 @@ export const generateWeeklyBanner = createServerFn({ method: "POST" })
 
     if (!res.ok) {
       const text = await res.text().catch(() => "");
-      console.error("AI Gateway error:", res.status, text.slice(0, 500));
       throw new Error(`Image generation failed: ${res.status} ${text}`);
     }
 
