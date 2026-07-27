@@ -335,8 +335,21 @@ export function TrackerApp({ userId }: { userId: string }) {
   });
 
   function handleToggle(t: Todo) {
-    setTodos((prev) => prev.map((x) => (x.id === t.id ? { ...x, completed: !t.completed } : x)));
-    if (!t.id.startsWith("tmp-")) updateTodo.mutate({ id: t.id, patch: { completed: !t.completed } });
+    const nextCompleted = !t.completed;
+    const prevDone = todos.filter((x) => x.completed).length;
+    const nextDone = prevDone + (nextCompleted ? 1 : -1);
+    setTodos((prev) => prev.map((x) => (x.id === t.id ? { ...x, completed: nextCompleted } : x)));
+    if (!t.id.startsWith("tmp-")) updateTodo.mutate({ id: t.id, patch: { completed: nextCompleted } });
+    if (nextCompleted) {
+      playSound("complete");
+      if (tasksGoal > 0 && prevDone < tasksGoal && nextDone >= tasksGoal) {
+        fireConfetti();
+        setGoalCelebration(true);
+        playSound("goal");
+      }
+    } else {
+      playSound("uncomplete");
+    }
   }
   function handleEditTitle(t: Todo, title: string) {
     setTodos((prev) => prev.map((x) => (x.id === t.id ? { ...x, title } : x)));
@@ -345,7 +358,10 @@ export function TrackerApp({ userId }: { userId: string }) {
   function handleDelete(t: Todo) {
     setTodos((prev) => prev.filter((x) => x.id !== t.id));
     if (!t.id.startsWith("tmp-")) deleteTodo.mutate(t.id);
+    playSound("delete");
   }
+
+  const [goalCelebration, setGoalCelebration] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
