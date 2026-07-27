@@ -342,6 +342,7 @@ export function TrackerApp({ userId }: { userId: string }) {
     if (!t.id.startsWith("tmp-")) updateTodo.mutate({ id: t.id, patch: { completed: nextCompleted } });
     if (nextCompleted) {
       playSound("complete");
+      fireMiniConfetti();
       if (tasksGoal > 0 && prevDone < tasksGoal && nextDone >= tasksGoal) {
         fireConfetti();
         setGoalCelebration(true);
