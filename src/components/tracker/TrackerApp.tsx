@@ -919,8 +919,11 @@ function TodoRow({
       ref={setNodeRef}
       style={style}
       {...attributes}
-      {...listeners}
-      className="group flex items-center gap-1.5 px-1.5 py-1 rounded-md hover:bg-muted/60 transition-colors cursor-grab active:cursor-grabbing touch-none"
+      {...(editing ? {} : listeners)}
+      className={cn(
+        "group flex items-center gap-1.5 px-1.5 py-1 rounded-md hover:bg-muted/60 transition-colors touch-none",
+        editing ? "cursor-text" : "cursor-grab active:cursor-grabbing",
+      )}
     >
       <Checkbox
         checked={todo.completed}
@@ -933,7 +936,9 @@ function TodoRow({
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={() => { if (draft !== todo.title) onEdit(todo, draft); setEditing(false); }}
+          onPointerDown={(e) => e.stopPropagation()}
           onKeyDown={(e) => {
+            e.stopPropagation();
             if (e.key === "Enter") (e.target as HTMLInputElement).blur();
             if (e.key === "Escape") { setDraft(todo.title); setEditing(false); }
           }}
