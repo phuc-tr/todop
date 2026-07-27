@@ -28,6 +28,7 @@ import { SettingsDialog, type Habit } from "./SettingsDialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useTheme, type ThemeColor } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, Moon, Sun, LogOut, Plus, X, GripVertical } from "lucide-react";
@@ -606,6 +607,8 @@ export function TrackerApp({ userId }: { userId: string }) {
                   onEdit={handleEditTitle}
                   onDelete={handleDelete}
                   onEntry={handleEntryChange}
+                  note={notes.find((n) => n.date === dateKey)?.content ?? ""}
+                  onNoteChange={(v) => handleNoteChange(dateKey, v)}
                 />
               );
             })}
@@ -635,6 +638,8 @@ function DayColumn({
   onEdit,
   onDelete,
   onEntry,
+  note,
+  onNoteChange,
 }: {
   day: Date;
   label: string;
@@ -647,6 +652,8 @@ function DayColumn({
   onEdit: (t: Todo, title: string) => void;
   onDelete: (t: Todo) => void;
   onEntry: (habitId: string, date: string, value: string) => void;
+  note: string;
+  onNoteChange: (v: string) => void;
 }) {
   const dateKey = toDateKey(day);
   const { setNodeRef, isOver } = useDroppable({ id: `day-${dateKey}` });
@@ -712,9 +719,10 @@ function DayColumn({
         </div>
       </SortableContext>
 
-      {habits.length > 0 && (
-        <div className="mt-auto border-t border-border px-2 py-2 space-y-1">
-          {habits.map((h) => {
+      <div className="mt-auto">
+        {habits.length > 0 && (
+          <div className="border-t border-border px-2 py-2 space-y-1">
+            {habits.map((h) => {
             const entry = entries.find((e) => e.habit_id === h.id && e.date === dateKey);
             return (
               <div key={h.id} className="flex items-center gap-2">
@@ -731,9 +739,28 @@ function DayColumn({
                 />
               </div>
             );
-          })}
-        </div>
-      )}
+            })}
+          </div>
+        )}
+        <DayNoteArea value={note} onCommit={onNoteChange} />
+      </div>
+    </div>
+  );
+}
+
+function DayNoteArea({ value, onCommit }: { value: string; onCommit: (v: string) => void }) {
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+  return (
+    <div className="border-t border-border px-2 py-2">
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Notes</div>
+      <Textarea
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => { if (draft !== value) onCommit(draft); }}
+        placeholder="Add a note…"
+        className="min-h-[56px] text-xs resize-none bg-transparent"
+      />
     </div>
   );
 }
