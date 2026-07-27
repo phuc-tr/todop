@@ -31,7 +31,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useTheme, type ThemeColor } from "@/lib/theme";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, Moon, Sun, LogOut, Plus, Minus, X, GripVertical } from "lucide-react";
+import { ChevronLeft, ChevronRight, Moon, Sun, LogOut, Plus, Minus, X } from "lucide-react";
 import { toast } from "sonner";
 import { HabitIcon } from "./habitIcons";
 import {
@@ -848,16 +848,10 @@ function TodoRow({
     <div
       ref={setNodeRef}
       style={style}
-      className="group flex items-center gap-1.5 px-1.5 py-1 rounded-md hover:bg-muted/60 transition-colors"
+      {...attributes}
+      {...listeners}
+      className="group flex items-center gap-1.5 px-1.5 py-1 rounded-md hover:bg-muted/60 transition-colors cursor-grab active:cursor-grabbing touch-none"
     >
-      <button
-        {...attributes}
-        {...listeners}
-        className="opacity-0 group-hover:opacity-100 text-muted-foreground cursor-grab active:cursor-grabbing touch-none"
-        aria-label="Drag"
-      >
-        <GripVertical className="h-3.5 w-3.5" />
-      </button>
       <Checkbox
         checked={todo.completed}
         onCheckedChange={() => onToggle(todo)}
