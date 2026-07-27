@@ -42,7 +42,7 @@ import { ChevronLeft, ChevronRight, Moon, Sun, LogOut, Plus, Minus, X } from "lu
 import { toast } from "sonner";
 import { HabitIcon } from "./habitIcons";
 import { playSound } from "@/lib/sound";
-import { fireConfetti } from "@/lib/celebration";
+import { fireConfetti, fireMiniConfetti } from "@/lib/celebration";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -342,6 +342,7 @@ export function TrackerApp({ userId }: { userId: string }) {
     if (!t.id.startsWith("tmp-")) updateTodo.mutate({ id: t.id, patch: { completed: nextCompleted } });
     if (nextCompleted) {
       playSound("complete");
+      fireMiniConfetti();
       if (tasksGoal > 0 && prevDone < tasksGoal && nextDone >= tasksGoal) {
         fireConfetti();
         setGoalCelebration(true);

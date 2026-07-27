@@ -29,3 +29,20 @@ export function fireConfetti() {
     colors,
   });
 }
+
+export function fireMiniConfetti(originX?: number, originY?: number) {
+  const colors = ["#3b82f6", "#22c55e", "#f59e0b", "#ef4444", "#a855f7"];
+  confetti({
+    particleCount: 40,
+    spread: 60,
+    startVelocity: 35,
+    ticks: 120,
+    origin: {
+      x: originX ?? 0.5,
+      y: originY ?? 0.7,
+    },
+    colors,
+    scalar: 0.8,
+    disableForReducedMotion: true,
+  });
+}
