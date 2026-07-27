@@ -187,7 +187,7 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
     <div
       className={cn(
         "relative rounded-lg border bg-card px-4 py-3 shadow-sm w-full sm:flex-1 flex items-stretch gap-2 group overflow-hidden min-h-0",
-        bgUrl ? "border-transparent" : "border-border",
+        bgUrl ? "border-background/30 dark:border-background/45" : "border-border",
       )}
       style={
         bgUrl
