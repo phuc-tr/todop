@@ -21,7 +21,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { addDays, isSameDay } from "date-fns";
+import { addDays, format, isSameDay } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { StatsPanel } from "./StatsPanel";
 import { SettingsDialog, type Habit } from "./SettingsDialog";
@@ -33,8 +33,6 @@ import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, Moon, Sun, LogOut, Plus, X, GripVertical } from "lucide-react";
 import { toast } from "sonner";
 import {
-  DAY_LABELS,
-  formatWeekRange,
   getWeekDays,
   getWeekStart,
   toDateKey,
@@ -50,14 +48,60 @@ type Todo = {
 };
 type Entry = { id: string; habit_id: string; date: string; value: number };
 
+type DayCount = 3 | 4 | 7;
+const DAY_COUNT_KEY = "tracker.dayCount";
+const VIEW_START_KEY = "tracker.viewStart";
+
+function loadDayCount(): DayCount {
+  if (typeof window === "undefined") return 7;
+  const n = parseInt(localStorage.getItem(DAY_COUNT_KEY) ?? "7");
+  return n === 3 || n === 4 ? n : 7;
+}
+function initialViewStart(count: DayCount): Date {
+  const today = new Date();
+  if (count === 7) return getWeekStart(today);
+  return new Date(today.getFullYear(), today.getMonth(), today.getDate());
+}
+
 export function TrackerApp({ userId }: { userId: string }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { theme, toggle } = useTheme();
-  const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
-  const days = useMemo(() => getWeekDays(weekStart), [weekStart]);
+  const [dayCount, setDayCountState] = useState<DayCount>(() => loadDayCount());
+  const [viewStart, setViewStart] = useState<Date>(() => {
+    const count = loadDayCount();
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem(VIEW_START_KEY);
+      if (stored) {
+        const d = new Date(stored);
+        if (!isNaN(d.getTime())) return d;
+      }
+    }
+    return initialViewStart(count);
+  });
+
+  function setDayCount(count: DayCount) {
+    setDayCountState(count);
+    if (typeof window !== "undefined") localStorage.setItem(DAY_COUNT_KEY, String(count));
+    // Re-anchor: 7 snaps to week; 3/4 anchors to today when today falls outside range
+    const today = new Date();
+    if (count === 7) {
+      setViewStart(getWeekStart(today));
+    } else {
+      setViewStart(new Date(today.getFullYear(), today.getMonth(), today.getDate()));
+    }
+  }
+
+  useEffect(() => {
+    if (typeof window !== "undefined") localStorage.setItem(VIEW_START_KEY, toDateKey(viewStart));
+  }, [viewStart]);
+
+  const days = useMemo(() => {
+    if (dayCount === 7) return getWeekDays(viewStart);
+    return Array.from({ length: dayCount }, (_, i) => addDays(viewStart, i));
+  }, [viewStart, dayCount]);
   const startKey = toDateKey(days[0]);
-  const endKey = toDateKey(days[6]);
+  const endKey = toDateKey(days[days.length - 1]);
 
   const todosKey = ["todos", userId, startKey];
   const entriesKey = ["entries", userId, startKey];
@@ -373,16 +417,50 @@ export function TrackerApp({ userId }: { userId: string }) {
             <h1 className="text-base font-medium tracking-tight">Weekly Tracker</h1>
           </div>
           <div className="flex items-center gap-1 ml-2">
-            <Button variant="ghost" size="icon" onClick={() => setWeekStart(addDays(weekStart, -7))} aria-label="Previous week">
+            <Button variant="ghost" size="icon" onClick={() => setViewStart(addDays(viewStart, -dayCount))} aria-label="Previous">
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={() => setWeekStart(addDays(weekStart, 7))} aria-label="Next week">
+            <Button variant="ghost" size="icon" onClick={() => setViewStart(addDays(viewStart, dayCount))} aria-label="Next">
               <ChevronRight className="h-4 w-4" />
             </Button>
-            <Button variant="outline" size="sm" className="ml-1" onClick={() => setWeekStart(getWeekStart(new Date()))}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="ml-1"
+              onClick={() =>
+                setViewStart(
+                  dayCount === 7
+                    ? getWeekStart(new Date())
+                    : (() => {
+                        const t = new Date();
+                        return new Date(t.getFullYear(), t.getMonth(), t.getDate());
+                      })(),
+                )
+              }
+            >
               Today
             </Button>
-            <span className="ml-3 text-sm text-muted-foreground hidden sm:inline">{formatWeekRange(weekStart)}</span>
+            <span className="ml-3 text-sm text-muted-foreground hidden sm:inline">
+              {formatRange(days[0], days[days.length - 1])}
+            </span>
+          </div>
+          <div className="flex items-center rounded-md border border-border overflow-hidden">
+            {([3, 4, 7] as const).map((n) => (
+              <button
+                key={n}
+                onClick={() => setDayCount(n)}
+                className={cn(
+                  "px-2.5 py-1 text-xs font-medium transition-colors",
+                  dayCount === n
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted",
+                )}
+                aria-pressed={dayCount === n}
+                aria-label={`Show ${n} days`}
+              >
+                {n}d
+              </button>
+            ))}
           </div>
           <div className="ml-auto flex items-center gap-2 flex-wrap">
             <StatsPanel
@@ -411,8 +489,11 @@ export function TrackerApp({ userId }: { userId: string }) {
 
       <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <main className="mx-auto max-w-[1600px] px-2 sm:px-4 py-4">
-          <div className="flex md:grid md:grid-cols-7 gap-px bg-border rounded-lg overflow-hidden overflow-x-auto snap-x snap-mandatory md:snap-none">
-            {days.map((day, i) => {
+          <div
+            className="flex md:grid gap-px bg-border rounded-lg overflow-hidden overflow-x-auto snap-x snap-mandatory md:snap-none"
+            style={{ gridTemplateColumns: `repeat(${dayCount}, minmax(0, 1fr))` }}
+          >
+            {days.map((day) => {
               const dateKey = toDateKey(day);
               const isToday = isSameDay(day, today);
               const dayTodos = todos
@@ -422,7 +503,7 @@ export function TrackerApp({ userId }: { userId: string }) {
                 <DayColumn
                   key={dateKey}
                   day={day}
-                  label={DAY_LABELS[i]}
+                  label={format(day, "EEE")}
                   isToday={isToday}
                   todos={dayTodos}
                   habits={habits}
