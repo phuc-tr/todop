@@ -440,6 +440,28 @@ export function TrackerApp({ userId }: { userId: string }) {
     upsertEntry.mutate({ habit_id: habitId, date, value });
   }
 
+  const upsertNote = useMutation({
+    mutationFn: async ({ date, content }: { date: string; content: string }) => {
+      const { error } = await supabase
+        .from("day_notes")
+        .upsert({ user_id: userId, date, content }, { onConflict: "user_id,date" });
+      if (error) throw error;
+    },
+    onError: () => {
+      toast.error("Note save failed");
+      qc.invalidateQueries({ queryKey: notesKey });
+    },
+  });
+
+  function handleNoteChange(date: string, content: string) {
+    qc.setQueryData<DayNote[]>(notesKey, (prev) => {
+      const list = prev ?? [];
+      const filtered = list.filter((n) => n.date !== date);
+      return [...filtered, { date, content }];
+    });
+    upsertNote.mutate({ date, content });
+  }
+
   const setTasksGoal = useMutation({
     mutationFn: async (goal: number) => {
       const { error } = await supabase
