@@ -31,7 +31,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useTheme, type ThemeColor } from "@/lib/theme";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, Moon, Sun, LogOut, Plus, X, GripVertical } from "lucide-react";
+import { ChevronLeft, ChevronRight, Moon, Sun, LogOut, Plus, Minus, X, GripVertical } from "lucide-react";
 import { toast } from "sonner";
 import { HabitIcon } from "./habitIcons";
 import {
@@ -768,16 +768,57 @@ function DayNoteArea({ value, onCommit }: { value: string; onCommit: (v: string)
 function HabitInput({ initialValue, onCommit }: { initialValue: string; onCommit: (v: string) => void }) {
   const [val, setVal] = useState(initialValue);
   useEffect(() => setVal(initialValue), [initialValue]);
+  const num = val === "" ? 0 : Number(val) || 0;
+  const step = (delta: number) => {
+    const next = Math.max(0, num + delta);
+    const nextStr = next === 0 && val === "" ? "" : String(next);
+    setVal(nextStr);
+    if (nextStr !== initialValue) onCommit(nextStr);
+  };
+  const filled = val !== "" && num > 0;
   return (
-    <Input
-      type="number"
-      value={val}
-      onChange={(e) => setVal(e.target.value)}
-      onBlur={() => { if (val !== initialValue) onCommit(val); }}
-      onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-      placeholder="0"
-      className="h-7 w-14 text-xs px-2 tabular-nums"
-    />
+    <div
+      className={cn(
+        "group/hi inline-flex items-center h-7 rounded-full border transition-colors",
+        filled
+          ? "border-primary/30 bg-primary/10 text-primary"
+          : "border-border/60 bg-muted/40 text-muted-foreground hover:bg-muted"
+      )}
+    >
+      <button
+        type="button"
+        onClick={() => step(-1)}
+        disabled={num <= 0}
+        aria-label="Decrease"
+        className="h-7 w-6 inline-flex items-center justify-center rounded-l-full opacity-0 group-hover/hi:opacity-100 focus-within:opacity-100 disabled:opacity-0 hover:bg-black/5 dark:hover:bg-white/10 transition-opacity"
+      >
+        <Minus className="h-3 w-3" />
+      </button>
+      <input
+        type="text"
+        inputMode="numeric"
+        pattern="[0-9]*"
+        value={val}
+        onChange={(e) => setVal(e.target.value.replace(/[^0-9]/g, ""))}
+        onBlur={() => { if (val !== initialValue) onCommit(val); }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          else if (e.key === "ArrowUp") { e.preventDefault(); step(1); }
+          else if (e.key === "ArrowDown") { e.preventDefault(); step(-1); }
+        }}
+        onFocus={(e) => e.currentTarget.select()}
+        placeholder="0"
+        className="w-6 h-7 bg-transparent text-center text-xs font-medium tabular-nums outline-none placeholder:text-muted-foreground/50 placeholder:font-normal"
+      />
+      <button
+        type="button"
+        onClick={() => step(1)}
+        aria-label="Increase"
+        className="h-7 w-6 inline-flex items-center justify-center rounded-r-full opacity-0 group-hover/hi:opacity-100 focus-within:opacity-100 hover:bg-black/5 dark:hover:bg-white/10 transition-opacity"
+      >
+        <Plus className="h-3 w-3" />
+      </button>
+    </div>
   );
 }
 
