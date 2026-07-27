@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -9,12 +9,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Dices, Pencil } from "lucide-react";
+import { Dices, Pencil, ImagePlus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const COLLECTION_KEY = "tracker.quotes.collection";
 const CUSTOM_PREFIX = "tracker.quotes.custom.";
 const DISPLAYED_PREFIX = "tracker.quotes.displayed.";
+const BG_PATH_PREFIX = "tracker.quotes.bg.path.";
+const BUCKET = "weekly-banners";
 
 const DEFAULT_QUOTES = [
   "The secret of getting ahead is getting started. — Mark Twain",
@@ -52,6 +56,7 @@ function pickRandom(list: string[], exclude?: string): string {
 export function QuotePanel({ weekKey }: { weekKey: string }) {
   const customKey = CUSTOM_PREFIX + weekKey;
   const displayedKey = DISPLAYED_PREFIX + weekKey;
+  const bgPathKey = BG_PATH_PREFIX + weekKey;
   const [collection, setCollection] = useState<string[]>(() => loadCollection());
   const [custom, setCustom] = useState<string>("");
   const [displayed, setDisplayed] = useState<string>("");
@@ -59,6 +64,9 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
   const [draft, setDraft] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogDraft, setDialogDraft] = useState("");
+  const [bgUrl, setBgUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -66,15 +74,26 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
     setCustom(savedCustom);
     if (savedCustom.trim()) {
       setDisplayed(savedCustom);
-      return;
-    }
-    const savedDisplayed = localStorage.getItem(displayedKey);
-    if (savedDisplayed) {
-      setDisplayed(savedDisplayed);
     } else {
-      const pick = pickRandom(collection);
-      setDisplayed(pick);
-      if (pick) localStorage.setItem(displayedKey, pick);
+      const savedDisplayed = localStorage.getItem(displayedKey);
+      if (savedDisplayed) {
+        setDisplayed(savedDisplayed);
+      } else {
+        const pick = pickRandom(collection);
+        setDisplayed(pick);
+        if (pick) localStorage.setItem(displayedKey, pick);
+      }
+    }
+    // Load background for this week
+    setBgUrl(null);
+    const savedPath = localStorage.getItem(bgPathKey);
+    if (savedPath) {
+      supabase.storage
+        .from(BUCKET)
+        .createSignedUrl(savedPath, 60 * 60 * 24 * 7)
+        .then(({ data, error }) => {
+          if (!error && data?.signedUrl) setBgUrl(data.signedUrl);
+        });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weekKey]);
@@ -120,9 +139,71 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
     setDialogOpen(false);
   }
 
+  async function handleFile(file: File) {
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please choose an image file");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Image is too large (max 10MB)");
+      return;
+    }
+    setUploading(true);
+    try {
+      const { data: userData, error: userErr } = await supabase.auth.getUser();
+      if (userErr || !userData.user) throw userErr ?? new Error("Not signed in");
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const path = `${userData.user.id}/${weekKey}.${ext}`;
+      const { error: uploadErr } = await supabase.storage
+        .from(BUCKET)
+        .upload(path, file, { upsert: true, contentType: file.type });
+      if (uploadErr) throw uploadErr;
+      // Remove previous path if different extension
+      const prev = localStorage.getItem(bgPathKey);
+      if (prev && prev !== path) {
+        await supabase.storage.from(BUCKET).remove([prev]).catch(() => {});
+      }
+      localStorage.setItem(bgPathKey, path);
+      const { data: signed, error: signErr } = await supabase.storage
+        .from(BUCKET)
+        .createSignedUrl(path, 60 * 60 * 24 * 7);
+      if (signErr) throw signErr;
+      setBgUrl(signed.signedUrl);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Upload failed";
+      toast.error(msg);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function clearBackground() {
+    const path = localStorage.getItem(bgPathKey);
+    localStorage.removeItem(bgPathKey);
+    setBgUrl(null);
+    if (path) {
+      await supabase.storage.from(BUCKET).remove([path]).catch(() => {});
+    }
+  }
+
   return (
-    <div className="rounded-lg border border-border bg-card px-4 py-3 shadow-sm w-full sm:flex-1 flex items-stretch gap-2 group overflow-hidden min-h-0">
-      <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+    <div
+      className="relative rounded-lg border border-border bg-card px-4 py-3 shadow-sm w-full sm:flex-1 flex items-stretch gap-2 group overflow-hidden min-h-0"
+      style={
+        bgUrl
+          ? {
+              backgroundImage: `url(${bgUrl})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+            }
+          : undefined
+      }
+    >
+      {bgUrl && (
+        <div className="absolute inset-0 bg-background/60 dark:bg-background/70 backdrop-blur-[2px] pointer-events-none" />
+      )}
+      <div className="relative flex-1 min-w-0 flex flex-col overflow-hidden">
         {editing ? (
           <Textarea
             autoFocus
@@ -141,7 +222,7 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
               }
             }}
             placeholder="Write anything… (⌘/Ctrl+Enter to save, Esc to cancel)"
-            className="flex-1 min-h-0 h-full text-sm resize-none"
+            className="flex-1 min-h-0 h-full text-sm resize-none bg-transparent"
           />
         ) : (
           <button
@@ -160,7 +241,31 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
           </button>
         )}
       </div>
-      <div className="flex flex-col gap-1 shrink-0 opacity-60 group-hover:opacity-100 transition-opacity">
+      <div className="relative flex flex-col gap-1 shrink-0 opacity-60 group-hover:opacity-100 transition-opacity">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) handleFile(f);
+          }}
+        />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6"
+          disabled={uploading}
+          onClick={() => {
+            if (bgUrl) clearBackground();
+            else fileInputRef.current?.click();
+          }}
+          title={bgUrl ? "Remove background" : "Set background image"}
+          aria-label={bgUrl ? "Remove background" : "Set background image"}
+        >
+          {bgUrl ? <X className="h-3.5 w-3.5" /> : <ImagePlus className="h-3.5 w-3.5" />}
+        </Button>
         <Button
           variant="ghost"
           size="icon"
