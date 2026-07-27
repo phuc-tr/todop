@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 
-const AI_GATEWAY_BASE = "https://ai-gateway.lovable.app";
+const AI_GATEWAY_BASE = "https://ai.gateway.lovable.dev";
 const BUCKET = "weekly-banners";
 
 function gatewayKey(): string {
@@ -20,13 +20,12 @@ export const generateWeeklyBanner = createServerFn({ method: "POST" })
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Lovable-API-Key": key,
+        Authorization: `Bearer ${key}`,
       },
       body: JSON.stringify({
-        model: "openai/gpt-image-2",
+        model: "google/gemini-2.5-flash-image",
         prompt,
-        n: 1,
-        size: "1024x1024",
+        modalities: ["image", "text"],
       }),
     });
 
@@ -36,16 +35,23 @@ export const generateWeeklyBanner = createServerFn({ method: "POST" })
     }
 
     const json = await res.json();
-    const imageUrl = json.data?.[0]?.url ?? json.data?.[0]?.b64_json;
-    if (!imageUrl) throw new Error("No image returned from generator");
+    // Gateway image responses can come in a few shapes; try known fields.
+    const b64: string | undefined =
+      json.data?.[0]?.b64_json ??
+      json.choices?.[0]?.message?.images?.[0]?.image_url?.url ??
+      json.choices?.[0]?.message?.images?.[0]?.b64_json;
+    const urlField: string | undefined = json.data?.[0]?.url;
+    if (!b64 && !urlField) {
+      throw new Error(`No image returned: ${JSON.stringify(json).slice(0, 400)}`);
+    }
 
     let buffer: ArrayBuffer;
-    if (imageUrl.startsWith("data:")) {
-      const base64 = imageUrl.split(",")[1];
+    if (b64) {
+      const base64 = b64.startsWith("data:") ? b64.split(",")[1] : b64;
       const bytes = Buffer.from(base64, "base64");
       buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
     } else {
-      const imageRes = await fetch(imageUrl);
+      const imageRes = await fetch(urlField!);
       if (!imageRes.ok) throw new Error("Could not download generated image");
       buffer = await imageRes.arrayBuffer();
     }
