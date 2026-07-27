@@ -28,6 +28,7 @@ import { SettingsDialog, type Habit } from "./SettingsDialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useTheme, type ThemeColor } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, Moon, Sun, LogOut, Plus, X, GripVertical } from "lucide-react";
@@ -48,6 +49,7 @@ type Todo = {
   sort_order: number;
 };
 type Entry = { id: string; habit_id: string; date: string; value: number };
+type DayNote = { date: string; content: string };
 
 type DayCount = 3 | 4 | 7;
 
@@ -153,6 +155,7 @@ export function TrackerApp({ userId }: { userId: string }) {
 
   const todosKey = ["todos", userId, startKey];
   const entriesKey = ["entries", userId, startKey];
+  const notesKey = ["notes", userId, startKey];
 
   const todosQuery = useQuery({
     queryKey: todosKey,
@@ -194,6 +197,19 @@ export function TrackerApp({ userId }: { userId: string }) {
     },
   });
 
+  const notesQuery = useQuery({
+    queryKey: notesKey,
+    queryFn: async (): Promise<DayNote[]> => {
+      const { data, error } = await supabase
+        .from("day_notes")
+        .select("date, content")
+        .gte("date", startKey)
+        .lte("date", endKey);
+      if (error) throw error;
+      return (data ?? []) as DayNote[];
+    },
+  });
+
   const settingsQuery = useQuery({
     queryKey: ["settings", userId],
     queryFn: async () => {
@@ -214,6 +230,7 @@ export function TrackerApp({ userId }: { userId: string }) {
   const todos = todosQuery.data ?? [];
   const habits = habitsQuery.data ?? [];
   const entries = entriesQuery.data ?? [];
+  const notes = notesQuery.data ?? [];
   const tasksGoal = settingsQuery.data?.weekly_task_goal ?? 20;
 
   function setTodos(fn: (prev: Todo[]) => Todo[]) {
@@ -424,6 +441,28 @@ export function TrackerApp({ userId }: { userId: string }) {
     upsertEntry.mutate({ habit_id: habitId, date, value });
   }
 
+  const upsertNote = useMutation({
+    mutationFn: async ({ date, content }: { date: string; content: string }) => {
+      const { error } = await supabase
+        .from("day_notes")
+        .upsert({ user_id: userId, date, content }, { onConflict: "user_id,date" });
+      if (error) throw error;
+    },
+    onError: () => {
+      toast.error("Note save failed");
+      qc.invalidateQueries({ queryKey: notesKey });
+    },
+  });
+
+  function handleNoteChange(date: string, content: string) {
+    qc.setQueryData<DayNote[]>(notesKey, (prev) => {
+      const list = prev ?? [];
+      const filtered = list.filter((n) => n.date !== date);
+      return [...filtered, { date, content }];
+    });
+    upsertNote.mutate({ date, content });
+  }
+
   const setTasksGoal = useMutation({
     mutationFn: async (goal: number) => {
       const { error } = await supabase
@@ -568,6 +607,8 @@ export function TrackerApp({ userId }: { userId: string }) {
                   onEdit={handleEditTitle}
                   onDelete={handleDelete}
                   onEntry={handleEntryChange}
+                  note={notes.find((n) => n.date === dateKey)?.content ?? ""}
+                  onNoteChange={(v) => handleNoteChange(dateKey, v)}
                 />
               );
             })}
@@ -597,6 +638,8 @@ function DayColumn({
   onEdit,
   onDelete,
   onEntry,
+  note,
+  onNoteChange,
 }: {
   day: Date;
   label: string;
@@ -609,6 +652,8 @@ function DayColumn({
   onEdit: (t: Todo, title: string) => void;
   onDelete: (t: Todo) => void;
   onEntry: (habitId: string, date: string, value: string) => void;
+  note: string;
+  onNoteChange: (v: string) => void;
 }) {
   const dateKey = toDateKey(day);
   const { setNodeRef, isOver } = useDroppable({ id: `day-${dateKey}` });
@@ -674,9 +719,10 @@ function DayColumn({
         </div>
       </SortableContext>
 
-      {habits.length > 0 && (
-        <div className="mt-auto border-t border-border px-2 py-2 space-y-1">
-          {habits.map((h) => {
+      <div className="mt-auto">
+        {habits.length > 0 && (
+          <div className="border-t border-border px-2 py-2 space-y-1">
+            {habits.map((h) => {
             const entry = entries.find((e) => e.habit_id === h.id && e.date === dateKey);
             return (
               <div key={h.id} className="flex items-center gap-2">
@@ -693,9 +739,28 @@ function DayColumn({
                 />
               </div>
             );
-          })}
-        </div>
-      )}
+            })}
+          </div>
+        )}
+        <DayNoteArea value={note} onCommit={onNoteChange} />
+      </div>
+    </div>
+  );
+}
+
+function DayNoteArea({ value, onCommit }: { value: string; onCommit: (v: string) => void }) {
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+  return (
+    <div className="border-t border-border px-2 py-2">
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Notes</div>
+      <Textarea
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => { if (draft !== value) onCommit(draft); }}
+        placeholder="Add a note…"
+        className="min-h-[56px] text-xs resize-none bg-transparent"
+      />
     </div>
   );
 }
