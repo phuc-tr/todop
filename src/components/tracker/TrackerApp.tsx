@@ -445,7 +445,7 @@ export function TrackerApp({ userId }: { userId: string }) {
   const tasksDone = todos.filter((t) => t.completed).length;
   const habitStats = habits.map((h) => {
     const sum = entries.filter((e) => e.habit_id === h.id).reduce((s, e) => s + Number(e.value), 0);
-    return { id: h.id, name: h.name, sum, goal: h.weekly_goal };
+    return { id: h.id, name: h.name, sum, goal: h.weekly_goal, unit: h.unit, icon: h.icon };
   });
 
   async function signOut() {
