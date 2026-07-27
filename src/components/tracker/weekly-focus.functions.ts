@@ -24,7 +24,7 @@ export const generateWeeklyBanner = createServerFn({ method: "POST" })
       },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash-image",
-        prompt,
+        messages: [{ role: "user", content: prompt }],
         modalities: ["image", "text"],
       }),
     });
