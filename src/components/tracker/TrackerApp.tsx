@@ -48,6 +48,7 @@ type Todo = {
   sort_order: number;
 };
 type Entry = { id: string; habit_id: string; date: string; value: number };
+type DayNote = { date: string; content: string };
 
 type DayCount = 3 | 4 | 7;
 
@@ -153,6 +154,7 @@ export function TrackerApp({ userId }: { userId: string }) {
 
   const todosKey = ["todos", userId, startKey];
   const entriesKey = ["entries", userId, startKey];
+  const notesKey = ["notes", userId, startKey];
 
   const todosQuery = useQuery({
     queryKey: todosKey,
@@ -194,6 +196,19 @@ export function TrackerApp({ userId }: { userId: string }) {
     },
   });
 
+  const notesQuery = useQuery({
+    queryKey: notesKey,
+    queryFn: async (): Promise<DayNote[]> => {
+      const { data, error } = await supabase
+        .from("day_notes")
+        .select("date, content")
+        .gte("date", startKey)
+        .lte("date", endKey);
+      if (error) throw error;
+      return (data ?? []) as DayNote[];
+    },
+  });
+
   const settingsQuery = useQuery({
     queryKey: ["settings", userId],
     queryFn: async () => {
@@ -214,6 +229,7 @@ export function TrackerApp({ userId }: { userId: string }) {
   const todos = todosQuery.data ?? [];
   const habits = habitsQuery.data ?? [];
   const entries = entriesQuery.data ?? [];
+  const notes = notesQuery.data ?? [];
   const tasksGoal = settingsQuery.data?.weekly_task_goal ?? 20;
 
   function setTodos(fn: (prev: Todo[]) => Todo[]) {
