@@ -625,7 +625,7 @@ export function TrackerApp({ userId }: { userId: string }) {
             </div>
           </div>
           <div className="flex flex-col-reverse sm:flex-row justify-end items-stretch gap-3">
-            <QuotePanel weekKey={startKey} />
+            <QuotePanel weekKey={toDateKey(getWeekStart(days[0]))} />
             <StatsPanel
               tasksDone={tasksDone}
               tasksGoal={tasksGoal}
