@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { CheckSquare } from "lucide-react";
+import { BrandMark } from "@/components/tracker/BrandMark";
 
 export const Route = createFileRoute("/auth")({
   component: AuthPage,
@@ -72,12 +72,11 @@ function AuthPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm">
-        <div className="flex items-center gap-2 mb-8 justify-center">
-          <CheckSquare className="h-6 w-6 text-primary" />
-          <h1 className="text-xl font-medium tracking-tight">Weekly Tracker</h1>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-          <h2 className="text-lg font-medium mb-1">
+        <h1 className="mb-8 flex justify-center">
+          <BrandMark />
+        </h1>
+        <div className="rounded-lg border border-border bg-card p-6">
+          <h2 className="font-editorial text-2xl mb-1.5">
             {mode === "signin" ? "Welcome back" : mode === "signup" ? "Create your account" : "Reset your password"}
           </h2>
           <p className="text-sm text-muted-foreground mb-5">

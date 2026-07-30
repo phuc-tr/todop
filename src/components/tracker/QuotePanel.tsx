@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Dices, Pencil, ImagePlus, X, Quote, List } from "lucide-react";
+import { DiceFive, PencilSimple, ImageSquare, X, Quotes, ListBullets } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -189,7 +189,10 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
         .maybeSingle();
       const prev = prevRow?.path ?? localStorage.getItem(bgPathKey);
       if (prev && prev !== path) {
-        await supabase.storage.from(BUCKET).remove([prev]).catch(() => {});
+        await supabase.storage
+          .from(BUCKET)
+          .remove([prev])
+          .catch(() => {});
       }
       const { error: upsertErr } = await supabase
         .from("weekly_backgrounds")
@@ -231,14 +234,17 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
     }
     localStorage.removeItem(bgPathKey);
     if (path) {
-      await supabase.storage.from(BUCKET).remove([path]).catch(() => {});
+      await supabase.storage
+        .from(BUCKET)
+        .remove([path])
+        .catch(() => {});
     }
   }
 
   return (
     <div
       className={cn(
-        "relative rounded-lg border bg-card px-4 py-3 shadow-sm w-full sm:flex-1 flex items-stretch gap-2 group overflow-hidden min-h-0",
+        "reveal relative rounded-lg border bg-card px-5 py-4 w-full sm:flex-1 flex items-stretch gap-2 group overflow-hidden min-h-0 transition-shadow duration-200 hover:shadow-lift",
         bgUrl ? "border-background/30 dark:border-background/45" : "border-border",
       )}
       style={
@@ -251,9 +257,7 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
           : undefined
       }
     >
-      {bgUrl && (
-        <div className="absolute -inset-px rounded-lg bg-black/45 pointer-events-none" />
-      )}
+      {bgUrl && <div className="absolute -inset-px rounded-lg bg-black/45 pointer-events-none" />}
       <div className="relative flex-1 min-w-0 flex flex-col overflow-hidden">
         {mode === "text" ? (
           <Textarea
@@ -262,13 +266,14 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
             placeholder="Write anything…"
             className={cn(
               "flex-1 min-h-0 h-full text-sm resize-none bg-transparent border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-1 -mx-1 py-0.5",
-              bgUrl && "text-white placeholder:text-white/70 [text-shadow:0_1px_2px_rgba(0,0,0,0.7)]",
+              bgUrl &&
+                "text-white placeholder:text-white/70 [text-shadow:0_1px_2px_rgba(0,0,0,0.7)]",
             )}
           />
         ) : (
           <div
             className={cn(
-              "flex-1 min-h-0 w-full text-sm leading-snug px-1 -mx-1 py-0.5 overflow-auto",
+              "font-editorial flex-1 min-h-0 w-full text-base leading-snug px-1 -mx-1 py-0.5 overflow-auto",
               bgUrl
                 ? "text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.7)]"
                 : displayed
@@ -308,7 +313,7 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
           title={bgUrl ? "Remove background" : "Set background image"}
           aria-label={bgUrl ? "Remove background" : "Set background image"}
         >
-          {bgUrl ? <X className="h-3.5 w-3.5" /> : <ImagePlus className="h-3.5 w-3.5" />}
+          {bgUrl ? <X className="h-3.5 w-3.5" /> : <ImageSquare className="h-3.5 w-3.5" />}
         </Button>
         {mode === "quote" && (
           <>
@@ -320,7 +325,7 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
               title="Shuffle quote"
               aria-label="Shuffle quote"
             >
-              <Dices className="h-3.5 w-3.5" />
+              <DiceFive className="h-3.5 w-3.5" />
             </Button>
             <Button
               variant="ghost"
@@ -330,7 +335,7 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
               title="Edit quote collection"
               aria-label="Edit quote collection"
             >
-              <List className="h-3.5 w-3.5" />
+              <ListBullets className="h-3.5 w-3.5" />
             </Button>
           </>
         )}
@@ -342,14 +347,20 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
           title={mode === "text" ? "Switch to quotes" : "Switch to free text"}
           aria-label={mode === "text" ? "Switch to quotes" : "Switch to free text"}
         >
-          {mode === "text" ? <Quote className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />}
+          {mode === "text" ? (
+            <Quotes className="h-3.5 w-3.5" />
+          ) : (
+            <PencilSimple className="h-3.5 w-3.5" />
+          )}
         </Button>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>Quote collection</DialogTitle>
             </DialogHeader>
-            <p className="text-xs text-muted-foreground">One quote per line. Blank lines are ignored.</p>
+            <p className="text-xs text-muted-foreground">
+              One quote per line. Blank lines are ignored.
+            </p>
             <Textarea
               value={dialogDraft}
               onChange={(e) => setDialogDraft(e.target.value)}

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { CheckSquare } from "lucide-react";
+import { BrandMark } from "@/components/tracker/BrandMark";
 
 export const Route = createFileRoute("/reset-password")({
   ssr: false,
@@ -13,9 +13,15 @@ export const Route = createFileRoute("/reset-password")({
   head: () => ({
     meta: [
       { title: "Set a new password — Weekly Tracker" },
-      { name: "description", content: "Choose a new password for your weekly productivity tracker account." },
+      {
+        name: "description",
+        content: "Choose a new password for your weekly productivity tracker account.",
+      },
       { property: "og:title", content: "Set a new password — Weekly Tracker" },
-      { property: "og:description", content: "Choose a new password for your weekly productivity tracker account." },
+      {
+        property: "og:description",
+        content: "Choose a new password for your weekly productivity tracker account.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -59,23 +65,40 @@ function ResetPasswordPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm">
-        <div className="flex items-center gap-2 mb-8 justify-center">
-          <CheckSquare className="h-6 w-6 text-primary" />
-          <h1 className="text-xl font-medium tracking-tight">Weekly Tracker</h1>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-          <h2 className="text-lg font-medium mb-1">Set a new password</h2>
+        <h1 className="mb-8 flex justify-center">
+          <BrandMark />
+        </h1>
+        <div className="rounded-lg border border-border bg-card p-6">
+          <h2 className="font-editorial text-2xl mb-1.5">Set a new password</h2>
           <p className="text-sm text-muted-foreground mb-5">
-            {ready ? "Choose a new password for your account." : "Open this page from the reset link in your email."}
+            {ready
+              ? "Choose a new password for your account."
+              : "Open this page from the reset link in your email."}
           </p>
           <form onSubmit={submit} className="space-y-3">
             <div>
               <Label htmlFor="new-password">New password</Label>
-              <Input id="new-password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} disabled={!ready} />
+              <Input
+                id="new-password"
+                type="password"
+                required
+                minLength={6}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={!ready}
+              />
             </div>
             <div>
               <Label htmlFor="confirm-password">Confirm password</Label>
-              <Input id="confirm-password" type="password" required minLength={6} value={confirm} onChange={(e) => setConfirm(e.target.value)} disabled={!ready} />
+              <Input
+                id="confirm-password"
+                type="password"
+                required
+                minLength={6}
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                disabled={!ready}
+              />
             </div>
             <Button type="submit" className="w-full" disabled={loading || !ready}>
               {loading ? "Please wait…" : "Update password"}

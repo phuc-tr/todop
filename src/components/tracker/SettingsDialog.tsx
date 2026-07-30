@@ -1,10 +1,16 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
-import { Settings, Trash2, Plus, Smile } from "lucide-react";
+import { Gear, Trash, Plus, Smiley } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 import { HABIT_ICON_KEYS, HABIT_ICONS, HabitIcon } from "./habitIcons";
 import { cn } from "@/lib/utils";
@@ -19,13 +25,7 @@ export type Habit = {
   icon: string;
 };
 
-function IconPicker({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (icon: string) => void;
-}) {
+function IconPicker({ value, onChange }: { value: string; onChange: (icon: string) => void }) {
   const Current = value ? HABIT_ICONS[value] : null;
   return (
     <Popover>
@@ -37,7 +37,11 @@ function IconPicker({
           className="h-9 w-9 shrink-0"
           aria-label="Choose icon"
         >
-          {Current ? <Current className="h-4 w-4" /> : <Smile className="h-4 w-4 text-muted-foreground" />}
+          {Current ? (
+            <Current className="h-4 w-4" />
+          ) : (
+            <Smiley className="h-4 w-4 text-muted-foreground" />
+          )}
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-64 p-2">
@@ -106,12 +110,12 @@ export function SettingsDialog({
     <Dialog>
       <DialogTrigger asChild>
         <Button variant="ghost" size="icon" aria-label="Settings">
-          <Settings className="h-4 w-4" />
+          <Gear className="h-4 w-4" />
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Settings</DialogTitle>
+          <DialogTitle className="font-editorial text-2xl">Settings</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div>
@@ -126,11 +130,16 @@ export function SettingsDialog({
           <div className="flex items-center justify-between">
             <div>
               <Label className="text-xs">Sound effects</Label>
-              <p className="text-[11px] text-muted-foreground">Play a chime on completion and delete.</p>
+              <p className="text-[11px] text-muted-foreground">
+                Play a chime on completion and delete.
+              </p>
             </div>
             <Switch
               checked={sound}
-              onCheckedChange={(v) => { setSound(v); setSoundEnabled(v); }}
+              onCheckedChange={(v) => {
+                setSound(v);
+                setSoundEnabled(v);
+              }}
               aria-label="Toggle sound effects"
             />
           </div>
@@ -142,7 +151,10 @@ export function SettingsDialog({
             <div className="mt-2 space-y-2">
               {habits.map((h) => (
                 <div key={h.id} className="flex items-center gap-2">
-                  <IconPicker value={h.icon ?? ""} onChange={(v) => onUpdateHabit(h.id, { icon: v })} />
+                  <IconPicker
+                    value={h.icon ?? ""}
+                    onChange={(v) => onUpdateHabit(h.id, { icon: v })}
+                  />
                   <Input
                     value={h.name}
                     onChange={(e) => onUpdateHabit(h.id, { name: e.target.value })}
@@ -158,12 +170,19 @@ export function SettingsDialog({
                   <Input
                     type="number"
                     value={h.weekly_goal}
-                    onChange={(e) => onUpdateHabit(h.id, { weekly_goal: parseInt(e.target.value) || 0 })}
+                    onChange={(e) =>
+                      onUpdateHabit(h.id, { weekly_goal: parseInt(e.target.value) || 0 })
+                    }
                     className="w-16"
                     placeholder="Goal"
                   />
-                  <Button variant="ghost" size="icon" onClick={() => onDeleteHabit(h.id)} aria-label="Delete habit">
-                    <Trash2 className="h-4 w-4" />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onDeleteHabit(h.id)}
+                    aria-label="Delete habit"
+                  >
+                    <Trash className="h-4 w-4" />
                   </Button>
                 </div>
               ))}

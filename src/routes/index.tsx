@@ -8,11 +8,15 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Weekly Tracker — Plan your week" },
-      { name: "description", content: "A minimal weekly productivity tracker with tasks and habits, inspired by Google Calendar." },
+      {
+        name: "description",
+        content:
+          "A minimal weekly productivity tracker with tasks and habits, inspired by Google Calendar.",
+      },
       { property: "og:title", content: "Weekly Tracker" },
       { property: "og:description", content: "Plan tasks and track habits across your week." },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
 });
