@@ -738,6 +738,7 @@ function DayColumn({
   return (
     <div
       ref={setNodeRef}
+      data-date={dateKey}
       className={cn(
         "bg-background w-[88vw] max-w-[360px] shrink-0 md:w-auto md:max-w-none md:min-w-0 md:flex-1 snap-start flex flex-col group/col",
         isOver && "bg-primary-soft/40",
