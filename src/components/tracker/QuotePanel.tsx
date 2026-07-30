@@ -67,6 +67,50 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
   const [bgUrl, setBgUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const userIdRef = useRef<string | null>(null);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  async function persistWeek(next: {
+    mode?: "quote" | "text";
+    custom_text?: string;
+    displayed_quote?: string;
+  }) {
+    const userId = userIdRef.current;
+    if (!userId) return;
+    await supabase.from("weekly_quotes").upsert({
+      user_id: userId,
+      week_key: weekKey,
+      mode: next.mode ?? mode,
+      custom_text: next.custom_text ?? custom,
+      displayed_quote: next.displayed_quote ?? displayed,
+    });
+  }
+
+  // Load the shared quote collection from the database once.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData.user?.id ?? null;
+      userIdRef.current = userId;
+      if (!userId) return;
+      const { data: row } = await supabase
+        .from("quote_collections")
+        .select("quotes")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (cancelled) return;
+      if (row?.quotes && row.quotes.length > 0) {
+        setCollection(row.quotes);
+      } else {
+        const local = loadCollection();
+        await supabase.from("quote_collections").upsert({ user_id: userId, quotes: local });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -84,13 +128,37 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
       setDisplayed(pick);
       if (pick) localStorage.setItem(displayedKey, pick);
     }
-    // Load background for this week from DB (sync across devices),
+    // Load this week's quote state + background from DB (sync across devices),
     // migrating any legacy localStorage path if present.
     setBgUrl(null);
     let cancelled = false;
     (async () => {
       const { data: userData } = await supabase.auth.getUser();
       const userId = userData.user?.id;
+      userIdRef.current = userId ?? null;
+      if (userId) {
+        const { data: qrow } = await supabase
+          .from("weekly_quotes")
+          .select("mode, custom_text, displayed_quote")
+          .eq("user_id", userId)
+          .eq("week_key", weekKey)
+          .maybeSingle();
+        if (cancelled) return;
+        if (qrow) {
+          setCustom(qrow.custom_text ?? "");
+          setMode(qrow.mode === "text" ? "text" : "quote");
+          if (qrow.displayed_quote) setDisplayed(qrow.displayed_quote);
+        } else {
+          // Migrate whatever this device has for the week.
+          await supabase.from("weekly_quotes").upsert({
+            user_id: userId,
+            week_key: weekKey,
+            mode: initialMode,
+            custom_text: savedCustom,
+            displayed_quote: localStorage.getItem(displayedKey) ?? "",
+          });
+        }
+      }
       let path: string | null = null;
       if (userId) {
         const { data: row } = await supabase
