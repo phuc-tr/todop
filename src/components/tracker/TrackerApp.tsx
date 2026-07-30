@@ -181,6 +181,28 @@ export function TrackerApp({ userId }: { userId: string }) {
     if (dayCount === 7) return getWeekDays(viewStart);
     return Array.from({ length: dayCount }, (_, i) => addDays(viewStart, i));
   }, [viewStart, dayCount]);
+
+  const gridRef = useRef<HTMLDivElement | null>(null);
+  const scrollToToday = useCallback((behavior: ScrollBehavior = "smooth") => {
+    const key = toDateKey(new Date());
+    requestAnimationFrame(() => {
+      const el = gridRef.current?.querySelector<HTMLElement>(`[data-date="${key}"]`);
+      el?.scrollIntoView({ behavior, inline: "start", block: "nearest" });
+    });
+  }, []);
+
+  function goToday() {
+    const t = new Date();
+    setViewStart(dayCount === 7 ? getWeekStart(t) : new Date(t.getFullYear(), t.getMonth(), t.getDate()));
+    scrollToToday();
+  }
+
+  // On first load, bring today's column into view (matters on mobile)
+  useEffect(() => {
+    scrollToToday("auto");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const startKey = toDateKey(days[0]);
   const endKey = toDateKey(days[days.length - 1]);
 
