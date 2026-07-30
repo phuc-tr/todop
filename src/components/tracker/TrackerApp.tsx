@@ -597,16 +597,7 @@ export function TrackerApp({ userId }: { userId: string }) {
                   variant="outline"
                   size="sm"
                   className="ml-1"
-                  onClick={() =>
-                    setViewStart(
-                      dayCount === 7
-                        ? getWeekStart(new Date())
-                        : (() => {
-                            const t = new Date();
-                            return new Date(t.getFullYear(), t.getMonth(), t.getDate());
-                          })(),
-                    )
-                  }
+                  onClick={goToday}
                 >
                   Today
                 </Button>
@@ -661,6 +652,7 @@ export function TrackerApp({ userId }: { userId: string }) {
       <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <main className="mx-auto max-w-[1600px] px-2 sm:px-4 py-4">
           <div
+            ref={gridRef}
             className="flex md:grid gap-px bg-border rounded-lg overflow-x-auto md:overflow-hidden snap-x snap-mandatory md:snap-none -mx-2 sm:mx-0 px-2 sm:px-0 scroll-px-2 sm:scroll-px-0"
             style={{ gridTemplateColumns: `repeat(${dayCount}, minmax(0, 1fr))` }}
           >
