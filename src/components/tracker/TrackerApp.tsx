@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -181,6 +181,28 @@ export function TrackerApp({ userId }: { userId: string }) {
     if (dayCount === 7) return getWeekDays(viewStart);
     return Array.from({ length: dayCount }, (_, i) => addDays(viewStart, i));
   }, [viewStart, dayCount]);
+
+  const gridRef = useRef<HTMLDivElement | null>(null);
+  const scrollToToday = useCallback((behavior: ScrollBehavior = "smooth") => {
+    const key = toDateKey(new Date());
+    requestAnimationFrame(() => {
+      const el = gridRef.current?.querySelector<HTMLElement>(`[data-date="${key}"]`);
+      el?.scrollIntoView({ behavior, inline: "start", block: "nearest" });
+    });
+  }, []);
+
+  function goToday() {
+    const t = new Date();
+    setViewStart(dayCount === 7 ? getWeekStart(t) : new Date(t.getFullYear(), t.getMonth(), t.getDate()));
+    scrollToToday();
+  }
+
+  // On first load, bring today's column into view (matters on mobile)
+  useEffect(() => {
+    scrollToToday("auto");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const startKey = toDateKey(days[0]);
   const endKey = toDateKey(days[days.length - 1]);
 
@@ -366,7 +388,7 @@ export function TrackerApp({ userId }: { userId: string }) {
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 500, tolerance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -575,16 +597,7 @@ export function TrackerApp({ userId }: { userId: string }) {
                   variant="outline"
                   size="sm"
                   className="ml-1"
-                  onClick={() =>
-                    setViewStart(
-                      dayCount === 7
-                        ? getWeekStart(new Date())
-                        : (() => {
-                            const t = new Date();
-                            return new Date(t.getFullYear(), t.getMonth(), t.getDate());
-                          })(),
-                    )
-                  }
+                  onClick={goToday}
                 >
                   Today
                 </Button>
@@ -639,6 +652,7 @@ export function TrackerApp({ userId }: { userId: string }) {
       <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <main className="mx-auto max-w-[1600px] px-2 sm:px-4 py-4">
           <div
+            ref={gridRef}
             className="flex md:grid gap-px bg-border rounded-lg overflow-x-auto md:overflow-hidden snap-x snap-mandatory md:snap-none -mx-2 sm:mx-0 px-2 sm:px-0 scroll-px-2 sm:scroll-px-0"
             style={{ gridTemplateColumns: `repeat(${dayCount}, minmax(0, 1fr))` }}
           >
@@ -738,6 +752,7 @@ function DayColumn({
   return (
     <div
       ref={setNodeRef}
+      data-date={dateKey}
       className={cn(
         "bg-background w-[88vw] max-w-[360px] shrink-0 md:w-auto md:max-w-none md:min-w-0 md:flex-1 snap-start flex flex-col group/col",
         isOver && "bg-primary-soft/40",
