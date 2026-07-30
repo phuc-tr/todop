@@ -5,7 +5,7 @@ import {
   DndContext,
   DragOverlay,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
   TouchSensor,
   closestCorners,
   useDroppable,
@@ -387,14 +387,18 @@ export function TrackerApp({ userId }: { userId: string }) {
   const [goalCelebration, setGoalCelebration] = useState(false);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 500, tolerance: 5 } }),
+    // Mouse drags immediately after a small move; touch requires a long-press so
+    // that vertical swipes stay scrolls instead of turning into drags.
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 300, tolerance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
   const [activeId, setActiveId] = useState<string | null>(null);
 
   function handleDragStart(e: DragStartEvent) {
     setActiveId(String(e.active.id));
+    // Confirm the long-press actually picked the item up.
+    navigator.vibrate?.(15);
   }
   function handleDragEnd(e: DragEndEvent) {
     setActiveId(null);
@@ -569,17 +573,17 @@ export function TrackerApp({ userId }: { userId: string }) {
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b border-border">
         <div className="mx-auto max-w-[1600px] px-4 sm:px-6 py-3 space-y-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center gap-2">
-                <div className="h-7 w-7 rounded-md bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold">W</div>
-                <h1 className="text-base font-medium tracking-tight">Weekly Tracker</h1>
-              </div>
-              <span className="text-sm text-muted-foreground hidden sm:inline">
+          {/* Below md the date controls drop to their own full-width row so the
+              icon cluster never wraps a single button onto a line of its own. */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <div className="flex items-center gap-2 min-w-0 order-1">
+              <div className="h-7 w-7 shrink-0 rounded-md bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold">W</div>
+              <h1 className="text-base font-medium tracking-tight whitespace-nowrap">Weekly Tracker</h1>
+              <span className="text-sm text-muted-foreground whitespace-nowrap hidden lg:inline">
                 {formatRange(days[0], days[days.length - 1])}
               </span>
             </div>
-            <div className="flex flex-wrap items-center justify-end gap-2">
+            <div className="flex items-center gap-0.5 shrink-0 w-full md:w-auto justify-between md:justify-end order-3 md:order-2 md:ml-auto">
               <div className="flex items-center gap-0.5">
                 <Button variant="ghost" size="icon" onClick={() => setViewStart(addDays(viewStart, -dayCount))} aria-label="Previous span">
                   <ChevronsLeft className="h-4 w-4" />
@@ -602,7 +606,7 @@ export function TrackerApp({ userId }: { userId: string }) {
                   Today
                 </Button>
               </div>
-              <div className="flex items-center rounded-md border border-border overflow-hidden">
+              <div className="flex items-center rounded-md border border-border overflow-hidden ml-2">
                 {([3, 4, 7] as const).map((n) => (
                   <button
                     key={n}
@@ -620,6 +624,8 @@ export function TrackerApp({ userId }: { userId: string }) {
                   </button>
                 ))}
               </div>
+            </div>
+            <div className="flex items-center gap-0.5 shrink-0 ml-auto md:ml-0 order-2 md:order-3">
               <SettingsDialog
                 habits={habits}
                 tasksGoal={tasksGoal}
@@ -936,7 +942,8 @@ function TodoRow({
       {...attributes}
       {...(editing ? {} : listeners)}
       className={cn(
-        "group flex items-center gap-1.5 px-1.5 py-1 rounded-md hover:bg-muted/60 transition-colors touch-none",
+        "group flex items-center gap-1.5 px-1.5 py-1 rounded-md hover:bg-muted/60 transition-colors touch-manipulation select-none",
+        isDragging && "shadow-sm ring-1 ring-primary/40",
         editing ? "cursor-text" : "cursor-grab active:cursor-grabbing",
       )}
     >
