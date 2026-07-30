@@ -196,6 +196,7 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
     const pick = pickRandom(collection, displayed);
     setDisplayed(pick);
     if (typeof window !== "undefined" && pick) localStorage.setItem(displayedKey, pick);
+    if (pick) void persistWeek({ displayed_quote: pick });
   }
 
   function saveCustom(value: string) {
@@ -204,11 +205,16 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
       if (value.trim()) localStorage.setItem(customKey, value);
       else localStorage.removeItem(customKey);
     }
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      void persistWeek({ custom_text: value });
+    }, 600);
   }
 
   function setModePersisted(next: "quote" | "text") {
     setMode(next);
     if (typeof window !== "undefined") localStorage.setItem(modeKey, next);
+    void persistWeek({ mode: next });
   }
 
   function openDialog() {
@@ -223,9 +229,13 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
       .filter(Boolean);
     setCollection(next);
     if (typeof window !== "undefined") localStorage.setItem(COLLECTION_KEY, JSON.stringify(next));
+    if (userIdRef.current) {
+      void supabase.from("quote_collections").upsert({ user_id: userIdRef.current, quotes: next });
+    }
     const pick = pickRandom(next);
     setDisplayed(pick);
     if (typeof window !== "undefined" && pick) localStorage.setItem(displayedKey, pick);
+    if (pick) void persistWeek({ displayed_quote: pick, custom_text: custom, mode });
     setDialogOpen(false);
   }
 
