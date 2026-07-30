@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { HABIT_ICON_KEYS, HABIT_ICONS, HabitIcon } from "./habitIcons";
 import { cn } from "@/lib/utils";
 import { getSoundEnabled, setSoundEnabled } from "@/lib/sound";
+import { ChangePassword } from "./ChangePassword";
 
 export type Habit = {
   id: string;
@@ -132,6 +133,9 @@ export function SettingsDialog({
               onCheckedChange={(v) => { setSound(v); setSoundEnabled(v); }}
               aria-label="Toggle sound effects"
             />
+          </div>
+          <div className="border-t border-border pt-4">
+            <ChangePassword />
           </div>
           <div>
             <Label className="text-xs">Habits</Label>
