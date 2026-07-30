@@ -106,6 +106,27 @@ export type Database = {
         }
         Relationships: []
       }
+      quote_collections: {
+        Row: {
+          created_at: string
+          quotes: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          quotes?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          quotes?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       settings: {
         Row: {
           updated_at: string
@@ -199,6 +220,36 @@ export type Database = {
           header?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      weekly_quotes: {
+        Row: {
+          created_at: string
+          custom_text: string
+          displayed_quote: string
+          mode: string
+          updated_at: string
+          user_id: string
+          week_key: string
+        }
+        Insert: {
+          created_at?: string
+          custom_text?: string
+          displayed_quote?: string
+          mode?: string
+          updated_at?: string
+          user_id: string
+          week_key: string
+        }
+        Update: {
+          created_at?: string
+          custom_text?: string
+          displayed_quote?: string
+          mode?: string
+          updated_at?: string
+          user_id?: string
+          week_key?: string
         }
         Relationships: []
       }
