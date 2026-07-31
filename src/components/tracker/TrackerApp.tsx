@@ -668,7 +668,7 @@ export function TrackerApp({ userId }: { userId: string }) {
         </div>
       </header>
 
-      <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <main className="mx-auto max-w-[1600px] px-2 sm:px-4 py-4">
           <div
             ref={gridRef}
