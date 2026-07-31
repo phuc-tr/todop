@@ -402,6 +402,21 @@ export function TrackerApp({ userId }: { userId: string }) {
     // Confirm the long-press actually picked the item up.
     navigator.vibrate?.(15);
   }
+
+  // Prefer whatever is under the pointer so empty day columns are valid drop
+  // targets (closestCorners alone favours nearby task rows in the source day).
+  function collisionDetection(args: Parameters<typeof closestCorners>[0]) {
+    const pointer = pointerWithin(args);
+    const candidates = pointer.length ? pointer : rectIntersection(args);
+    if (!candidates.length) return closestCorners(args);
+    const item = candidates.find((c) => !String(c.id).startsWith("day-"));
+    return item ? [item] : candidates;
+  }
+
+  function unusedDragStart(e: DragStartEvent) {
+    setActiveId(String(e.active.id));
+    navigator.vibrate?.(15);
+  }
   function handleDragEnd(e: DragEndEvent) {
     setActiveId(null);
     const { active, over } = e;
