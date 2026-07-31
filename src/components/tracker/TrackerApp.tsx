@@ -413,10 +413,6 @@ export function TrackerApp({ userId }: { userId: string }) {
     return item ? [item] : candidates;
   }
 
-  function unusedDragStart(e: DragStartEvent) {
-    setActiveId(String(e.active.id));
-    navigator.vibrate?.(15);
-  }
   function handleDragEnd(e: DragEndEvent) {
     setActiveId(null);
     const { active, over } = e;
