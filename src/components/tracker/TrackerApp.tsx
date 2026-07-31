@@ -8,6 +8,8 @@ import {
   MouseSensor,
   TouchSensor,
   closestCorners,
+  pointerWithin,
+  rectIntersection,
   useDroppable,
   useSensor,
   useSensors,
@@ -400,6 +402,17 @@ export function TrackerApp({ userId }: { userId: string }) {
     // Confirm the long-press actually picked the item up.
     navigator.vibrate?.(15);
   }
+
+  // Prefer whatever is under the pointer so empty day columns are valid drop
+  // targets (closestCorners alone favours nearby task rows in the source day).
+  function collisionDetection(args: Parameters<typeof closestCorners>[0]) {
+    const pointer = pointerWithin(args);
+    const candidates = pointer.length ? pointer : rectIntersection(args);
+    if (!candidates.length) return closestCorners(args);
+    const item = candidates.find((c) => !String(c.id).startsWith("day-"));
+    return item ? [item] : candidates;
+  }
+
   function handleDragEnd(e: DragEndEvent) {
     setActiveId(null);
     const { active, over } = e;
@@ -655,7 +668,7 @@ export function TrackerApp({ userId }: { userId: string }) {
         </div>
       </header>
 
-      <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <main className="mx-auto max-w-[1600px] px-2 sm:px-4 py-4">
           <div
             ref={gridRef}
