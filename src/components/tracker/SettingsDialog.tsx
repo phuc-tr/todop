@@ -16,6 +16,15 @@ import { HABIT_ICON_KEYS, HABIT_ICONS, HabitIcon } from "./habitIcons";
 import { cn } from "@/lib/utils";
 import { getSoundEnabled, setSoundEnabled } from "@/lib/sound";
 import { ChangePassword } from "./ChangePassword";
+import { DAY_LABELS } from "@/lib/week";
+import {
+  BACKGROUND_SETS,
+  WEEKDAY_ORDER,
+  clearDayBackgrounds,
+  getDayBackground,
+  setDayBackground,
+  useDayBackgrounds,
+} from "@/lib/dayBackgrounds";
 
 export type Habit = {
   id: string;
@@ -81,6 +90,101 @@ function IconPicker({ value, onChange }: { value: string; onChange: (icon: strin
   );
 }
 
+function DayBackgroundPicker() {
+  const map = useDayBackgrounds();
+  const anySet = WEEKDAY_ORDER.some((d) => map[d]);
+  // The grid lives inline rather than in a Popover: a popover portals outside
+  // the dialog, where the dialog's scroll lock eats wheel events on it.
+  const [openDay, setOpenDay] = useState<number | null>(null);
+  const openSelected = openDay === null ? null : getDayBackground(map[openDay]);
+  return (
+    <div>
+      <div className="flex items-center justify-between">
+        <div>
+          <Label className="text-xs">Day backgrounds</Label>
+          <p className="text-[11px] text-muted-foreground">
+            An image behind each weekday's header.
+          </p>
+        </div>
+        {anySet && (
+          <Button type="button" variant="ghost" size="sm" onClick={clearDayBackgrounds}>
+            Reset
+          </Button>
+        )}
+      </div>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {WEEKDAY_ORDER.map((weekday, i) => {
+          const selected = getDayBackground(map[weekday]);
+          return (
+            <button
+              key={weekday}
+              type="button"
+              onClick={() => setOpenDay(openDay === weekday ? null : weekday)}
+              className="flex flex-col items-center gap-1 rounded-md p-1 hover:bg-muted"
+              aria-expanded={openDay === weekday}
+              aria-label={`Background for ${DAY_LABELS[i]}`}
+            >
+              <span
+                className={cn(
+                  "h-10 w-10 rounded-md border border-border bg-cover bg-center flex items-center justify-center text-[9px] text-muted-foreground",
+                  !selected && "bg-muted",
+                  openDay === weekday && "ring-2 ring-ring",
+                )}
+                style={selected ? { backgroundImage: `url(${selected.src})` } : undefined}
+              >
+                {!selected && "None"}
+              </span>
+              <span className="text-[10px] text-muted-foreground">{DAY_LABELS[i]}</span>
+            </button>
+          );
+        })}
+      </div>
+      {openDay !== null && (
+        <div className="mt-2 rounded-lg border border-border p-2">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-[11px] font-medium">
+              {DAY_LABELS[WEEKDAY_ORDER.indexOf(openDay)]}
+            </span>
+            <button
+              type="button"
+              onClick={() => setDayBackground(openDay, null)}
+              className={cn(
+                "rounded-md border border-border px-2 py-0.5 text-[10px] text-muted-foreground hover:bg-muted",
+                !openSelected && "ring-2 ring-ring",
+              )}
+            >
+              None
+            </button>
+          </div>
+          {BACKGROUND_SETS.map((set) => (
+            <div key={set.id} className="mb-2 last:mb-0">
+              <div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                {set.label}
+              </div>
+              <div className="grid grid-cols-8 gap-1.5">
+                {set.items.map((bg) => (
+                  <button
+                    key={bg.id}
+                    type="button"
+                    onClick={() => setDayBackground(openDay, bg.id)}
+                    className={cn(
+                      "aspect-square w-full rounded-md border border-border bg-cover bg-center hover:opacity-80",
+                      openSelected?.id === bg.id && "ring-2 ring-ring",
+                    )}
+                    style={{ backgroundImage: `url(${bg.src})` }}
+                    title={bg.label}
+                    aria-label={bg.label}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function SettingsDialog({
   habits,
   tasksGoal,
@@ -113,7 +217,7 @@ export function SettingsDialog({
           <Gear className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto scrollbar-subtle">
         <DialogHeader>
           <DialogTitle className="font-editorial text-2xl">Settings</DialogTitle>
         </DialogHeader>
@@ -143,6 +247,7 @@ export function SettingsDialog({
               aria-label="Toggle sound effects"
             />
           </div>
+          <DayBackgroundPicker />
           <div className="border-t border-border pt-4">
             <ChangePassword />
           </div>

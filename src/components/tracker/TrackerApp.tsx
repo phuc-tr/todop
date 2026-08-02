@@ -40,7 +40,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useTheme, type ThemeColor } from "@/lib/theme";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Moon, Sun, LogOut, Plus, Minus, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Moon, Sun, LogOut, Plus, Minus, X, Maximize2 } from "lucide-react";
 import { toast } from "sonner";
 import { HabitIcon } from "./habitIcons";
 import { playSound } from "@/lib/sound";
@@ -68,6 +68,11 @@ import {
   getWeekStart,
   toDateKey,
 } from "@/lib/week";
+import {
+  getDayBackground,
+  useDayBackgrounds,
+  type DayBackground,
+} from "@/lib/dayBackgrounds";
 
 type Todo = {
   id: string;
@@ -581,6 +586,7 @@ export function TrackerApp({ userId }: { userId: string }) {
 
   const today = new Date();
   const activeTodo = activeId ? todos.find((t) => t.id === activeId) : null;
+  const dayBackgrounds = useDayBackgrounds();
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -687,6 +693,7 @@ export function TrackerApp({ userId }: { userId: string }) {
                   day={day}
                   label={format(day, "EEE")}
                   isToday={isToday}
+                  background={getDayBackground(dayBackgrounds[day.getDay()])}
                   todos={dayTodos}
                   habits={habits}
                   entries={entries}
@@ -732,6 +739,7 @@ function DayColumn({
   day,
   label,
   isToday,
+  background,
   todos,
   habits,
   entries,
@@ -746,6 +754,7 @@ function DayColumn({
   day: Date;
   label: string;
   isToday: boolean;
+  background: DayBackground | null;
   todos: Todo[];
   habits: Habit[];
   entries: Entry[];
@@ -777,10 +786,28 @@ function DayColumn({
         isOver && "bg-primary-soft/40",
       )}
     >
-      <div className={cn("px-3 py-2 border-b border-border sticky top-0 bg-background z-10", isToday && "bg-today")}>
-        <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
-        <div className={cn("text-lg font-medium tabular-nums", isToday && "text-primary")}>
-          {day.getDate()}
+      <div
+        className={cn(
+          "relative px-3 py-2 border-b border-border sticky top-0 bg-background z-10 overflow-hidden",
+          isToday && !background && "bg-today",
+        )}
+        style={
+          background
+            ? {
+                backgroundImage: `url(${background.src})`,
+                backgroundSize: "cover",
+                backgroundPosition: background.position ?? "center",
+              }
+            : undefined
+        }
+      >
+        {/* Scrim keeps the label legible over both light and dark tiles. */}
+        {background && <div className="absolute inset-0 bg-background/55" aria-hidden />}
+        <div className="relative">
+          <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
+          <div className={cn("text-lg font-medium tabular-nums", isToday && "text-primary")}>
+            {day.getDate()}
+          </div>
         </div>
       </div>
       <SortableContext items={todos.map((t) => t.id)} strategy={verticalListSortingStrategy} id={`day-${dateKey}`}>
@@ -845,25 +872,65 @@ function DayColumn({
             })}
           </div>
         )}
-        <DayNoteArea value={note} onCommit={onNoteChange} />
+        <DayNoteArea value={note} onCommit={onNoteChange} title={format(day, "EEEE, MMM d")} />
       </div>
     </div>
   );
 }
 
-function DayNoteArea({ value, onCommit }: { value: string; onCommit: (v: string) => void }) {
+function DayNoteArea({ value, onCommit, title }: { value: string; onCommit: (v: string) => void; title: string }) {
   const [draft, setDraft] = useState(value);
+  const [focused, setFocused] = useState(false);
   useEffect(() => setDraft(value), [value]);
+
+  const commit = (v: string) => { if (v !== value) onCommit(v); };
+
   return (
     <div className="border-t border-border px-2 py-2">
-      <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Notes</div>
+      <div className="flex items-center justify-between mb-1">
+        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Notes</div>
+        <button
+          type="button"
+          onClick={() => setFocused(true)}
+          title="Edit full screen"
+          aria-label="Edit note full screen"
+          className="text-muted-foreground/60 hover:text-foreground opacity-0 group-hover/col:opacity-100 focus-visible:opacity-100 transition-opacity"
+        >
+          <Maximize2 className="h-3 w-3" />
+        </button>
+      </div>
       <textarea
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
-        onBlur={() => { if (draft !== value) onCommit(draft); }}
+        onBlur={() => commit(draft)}
         placeholder="Add a note…"
         className="w-full min-h-[200px] text-xs resize-none bg-transparent border-0 outline-none p-0 placeholder:text-muted-foreground/50 focus:outline-none overflow-y-auto scrollbar-subtle"
       />
+
+      <Dialog
+        open={focused}
+        onOpenChange={(open) => {
+          if (!open) commit(draft);
+          setFocused(open);
+        }}
+      >
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Notes — {title}</DialogTitle>
+            <DialogDescription className="sr-only">Edit the note for this day</DialogDescription>
+          </DialogHeader>
+          <textarea
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="Add a note…"
+            className="w-full h-[60vh] text-sm resize-none bg-transparent border-0 outline-none p-0 placeholder:text-muted-foreground/50 focus:outline-none overflow-y-auto scrollbar-subtle"
+          />
+          <DialogFooter>
+            <Button size="sm" onClick={() => { commit(draft); setFocused(false); }}>Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
