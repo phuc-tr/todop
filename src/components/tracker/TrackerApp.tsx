@@ -401,6 +401,9 @@ export function TrackerApp({ userId }: { userId: string }) {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
   const [activeId, setActiveId] = useState<string | null>(null);
+  // Last known pointer position during a drag; used to decide whether a drop
+  // lands above or below the hovered row.
+  const pointerYRef = useRef<number | null>(null);
 
   function handleDragStart(e: DragStartEvent) {
     setActiveId(String(e.active.id));
@@ -411,6 +414,7 @@ export function TrackerApp({ userId }: { userId: string }) {
   // Prefer whatever is under the pointer so empty day columns are valid drop
   // targets (closestCorners alone favours nearby task rows in the source day).
   function collisionDetection(args: Parameters<typeof closestCorners>[0]) {
+    pointerYRef.current = args.pointerCoordinates?.y ?? null;
     const pointer = pointerWithin(args);
     const candidates = pointer.length ? pointer : rectIntersection(args);
     if (!candidates.length) return closestCorners(args);
@@ -443,12 +447,10 @@ export function TrackerApp({ userId }: { userId: string }) {
     if (overTodo) {
       const idx = targetList.findIndex((t) => t.id === overTodo!.id);
       if (idx >= 0) {
-        // Drop below the hovered row when the dragged card's centre has passed
-        // its midpoint, otherwise above it.
-        const activeRect = e.active.rect.current.translated ?? e.active.rect.current.initial;
-        const activeCenter = activeRect ? activeRect.top + activeRect.height / 2 : null;
+        // Drop below the hovered row only when the pointer is in its lower half.
+        const pointerY = pointerYRef.current;
         const overCenter = over.rect.top + over.rect.height / 2;
-        finalIndex = activeCenter !== null && activeCenter > overCenter ? idx + 1 : idx;
+        finalIndex = pointerY !== null && pointerY > overCenter ? idx + 1 : idx;
       }
     }
 
