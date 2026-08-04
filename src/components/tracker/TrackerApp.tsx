@@ -440,25 +440,31 @@ export function TrackerApp({ userId }: { userId: string }) {
       targetDate = overTodo.date;
     }
 
-    const targetList = todos
-      .filter((t) => t.date === targetDate && t.id !== activeTodo.id)
-      .sort((a, b) => a.sort_order - b.sort_order);
-    let finalIndex = targetList.length;
-    if (overTodo) {
-      const idx = targetList.findIndex((t) => t.id === overTodo!.id);
-      if (idx >= 0) {
-        // Drop below the hovered row only when the pointer is in its lower half.
-        const pointerY = pointerYRef.current;
-        const overCenter = over.rect.top + over.rect.height / 2;
-        finalIndex = pointerY !== null && pointerY > overCenter ? idx + 1 : idx;
+    // Mirror dnd-kit's own sortable preview so the released card lands exactly
+    // where the gap was shown.
+    let newTargetList: Todo[];
+    if (overTodo && targetDate === activeTodo.date) {
+      const dayList = todos
+        .filter((t) => t.date === targetDate)
+        .sort((a, b) => a.sort_order - b.sort_order);
+      const from = dayList.findIndex((t) => t.id === activeTodo.id);
+      const to = dayList.findIndex((t) => t.id === overTodo!.id);
+      newTargetList = [...dayList];
+      if (from >= 0 && to >= 0) {
+        newTargetList.splice(to, 0, newTargetList.splice(from, 1)[0]);
       }
+    } else {
+      const targetList = todos
+        .filter((t) => t.date === targetDate && t.id !== activeTodo.id)
+        .sort((a, b) => a.sort_order - b.sort_order);
+      const idx = overTodo ? targetList.findIndex((t) => t.id === overTodo!.id) : -1;
+      const finalIndex = idx >= 0 ? idx : targetList.length;
+      newTargetList = [
+        ...targetList.slice(0, finalIndex),
+        { ...activeTodo, date: targetDate },
+        ...targetList.slice(finalIndex),
+      ];
     }
-
-    const newTargetList = [
-      ...targetList.slice(0, finalIndex),
-      { ...activeTodo, date: targetDate },
-      ...targetList.slice(finalIndex),
-    ];
     const updates = newTargetList.map((t, i) => ({ id: t.id, sort_order: i, date: targetDate }));
 
     setTodos((prev) =>
