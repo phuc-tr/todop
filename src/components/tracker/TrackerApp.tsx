@@ -401,9 +401,6 @@ export function TrackerApp({ userId }: { userId: string }) {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
   const [activeId, setActiveId] = useState<string | null>(null);
-  // Last known pointer position during a drag; used to decide whether a drop
-  // lands above or below the hovered row.
-  const pointerYRef = useRef<number | null>(null);
 
   function handleDragStart(e: DragStartEvent) {
     setActiveId(String(e.active.id));
@@ -414,7 +411,6 @@ export function TrackerApp({ userId }: { userId: string }) {
   // Prefer whatever is under the pointer so empty day columns are valid drop
   // targets (closestCorners alone favours nearby task rows in the source day).
   function collisionDetection(args: Parameters<typeof closestCorners>[0]) {
-    pointerYRef.current = args.pointerCoordinates?.y ?? null;
     const pointer = pointerWithin(args);
     const candidates = pointer.length ? pointer : rectIntersection(args);
     if (!candidates.length) return closestCorners(args);
