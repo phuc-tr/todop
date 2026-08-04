@@ -401,9 +401,6 @@ export function TrackerApp({ userId }: { userId: string }) {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
   const [activeId, setActiveId] = useState<string | null>(null);
-  // Last known pointer position during a drag; used to decide whether a drop
-  // lands above or below the hovered row.
-  const pointerYRef = useRef<number | null>(null);
 
   function handleDragStart(e: DragStartEvent) {
     setActiveId(String(e.active.id));
@@ -414,7 +411,6 @@ export function TrackerApp({ userId }: { userId: string }) {
   // Prefer whatever is under the pointer so empty day columns are valid drop
   // targets (closestCorners alone favours nearby task rows in the source day).
   function collisionDetection(args: Parameters<typeof closestCorners>[0]) {
-    pointerYRef.current = args.pointerCoordinates?.y ?? null;
     const pointer = pointerWithin(args);
     const candidates = pointer.length ? pointer : rectIntersection(args);
     if (!candidates.length) return closestCorners(args);
@@ -440,25 +436,31 @@ export function TrackerApp({ userId }: { userId: string }) {
       targetDate = overTodo.date;
     }
 
-    const targetList = todos
-      .filter((t) => t.date === targetDate && t.id !== activeTodo.id)
-      .sort((a, b) => a.sort_order - b.sort_order);
-    let finalIndex = targetList.length;
-    if (overTodo) {
-      const idx = targetList.findIndex((t) => t.id === overTodo!.id);
-      if (idx >= 0) {
-        // Drop below the hovered row only when the pointer is in its lower half.
-        const pointerY = pointerYRef.current;
-        const overCenter = over.rect.top + over.rect.height / 2;
-        finalIndex = pointerY !== null && pointerY > overCenter ? idx + 1 : idx;
+    // Mirror dnd-kit's own sortable preview so the released card lands exactly
+    // where the gap was shown.
+    let newTargetList: Todo[];
+    if (overTodo && targetDate === activeTodo.date) {
+      const dayList = todos
+        .filter((t) => t.date === targetDate)
+        .sort((a, b) => a.sort_order - b.sort_order);
+      const from = dayList.findIndex((t) => t.id === activeTodo.id);
+      const to = dayList.findIndex((t) => t.id === overTodo!.id);
+      newTargetList = [...dayList];
+      if (from >= 0 && to >= 0) {
+        newTargetList.splice(to, 0, newTargetList.splice(from, 1)[0]);
       }
+    } else {
+      const targetList = todos
+        .filter((t) => t.date === targetDate && t.id !== activeTodo.id)
+        .sort((a, b) => a.sort_order - b.sort_order);
+      const idx = overTodo ? targetList.findIndex((t) => t.id === overTodo!.id) : -1;
+      const finalIndex = idx >= 0 ? idx : targetList.length;
+      newTargetList = [
+        ...targetList.slice(0, finalIndex),
+        { ...activeTodo, date: targetDate },
+        ...targetList.slice(finalIndex),
+      ];
     }
-
-    const newTargetList = [
-      ...targetList.slice(0, finalIndex),
-      { ...activeTodo, date: targetDate },
-      ...targetList.slice(finalIndex),
-    ];
     const updates = newTargetList.map((t, i) => ({ id: t.id, sort_order: i, date: targetDate }));
 
     setTodos((prev) =>
