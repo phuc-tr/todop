@@ -439,8 +439,18 @@ export function TrackerApp({ userId }: { userId: string }) {
     const targetList = todos
       .filter((t) => t.date === targetDate && t.id !== activeTodo.id)
       .sort((a, b) => a.sort_order - b.sort_order);
-    const insertIndex = overTodo ? targetList.findIndex((t) => t.id === overTodo!.id) : targetList.length;
-    const finalIndex = insertIndex < 0 ? targetList.length : insertIndex;
+    let finalIndex = targetList.length;
+    if (overTodo) {
+      const idx = targetList.findIndex((t) => t.id === overTodo!.id);
+      if (idx >= 0) {
+        // Drop below the hovered row when the dragged card's centre has passed
+        // its midpoint, otherwise above it.
+        const activeRect = e.active.rect.current.translated ?? e.active.rect.current.initial;
+        const activeCenter = activeRect ? activeRect.top + activeRect.height / 2 : null;
+        const overCenter = over.rect.top + over.rect.height / 2;
+        finalIndex = activeCenter !== null && activeCenter > overCenter ? idx + 1 : idx;
+      }
+    }
 
     const newTargetList = [
       ...targetList.slice(0, finalIndex),
