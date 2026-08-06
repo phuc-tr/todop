@@ -1,19 +1,19 @@
-import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 
 export function BrandMark() {
   return (
     <Stack direction="row" spacing={1.25} sx={{ alignItems: "center" }}>
-      <Box
-        aria-hidden
-        component="img"
+      <img
         src="/icon-512.png"
         alt="Weekly Tracker"
-        sx={{
+        width={32}
+        height={32}
+        aria-hidden
+        style={{
           width: 32,
           height: 32,
-          borderRadius: 2,
+          borderRadius: 8,
           display: "block",
         }}
       />
