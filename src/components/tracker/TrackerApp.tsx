@@ -669,25 +669,7 @@ export function TrackerApp({ userId }: { userId: string }) {
               spacing={1.5}
               sx={{ alignItems: "center", minWidth: 0, order: 1 }}
             >
-              <Box
-                aria-hidden
-                sx={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 1.5,
-                  display: "grid",
-                  placeItems: "center",
-                  bgcolor: (t) => `rgba(${t.vars.palette.primary.mainChannel} / 0.12)`,
-                  color: "primary.main",
-                  fontSize: 14,
-                  fontWeight: 600,
-                }}
-              >
-                W
-              </Box>
-              <Typography variant="h6" component="h1" noWrap>
-                Weekly Tracker
-              </Typography>
+              <BrandMark />
               <Typography
                 variant="body2"
                 color="text.secondary"
