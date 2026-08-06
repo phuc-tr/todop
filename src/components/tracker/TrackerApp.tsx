@@ -24,6 +24,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { addDays, format, isSameDay } from "date-fns";
+import { motion, useSpring } from "motion/react";
 import AppBar from "@mui/material/AppBar";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -91,6 +92,12 @@ function formatRange(start: Date, end: Date): string {
   if (sameYear) return `${format(start, "MMM d")} – ${format(end, "MMM d, yyyy")}`;
   return `${format(start, "MMM d, yyyy")} – ${format(end, "MMM d, yyyy")}`;
 }
+
+// Column widths are flex-grow weights driven by a spring, so expanding one day
+// and shrinking the rest is a single smooth motion (and interruptible mid-flight).
+const MotionBox = motion.create(Box);
+const EXPANDED_GROW = 3;
+const GROW_SPRING = { stiffness: 700, damping: 44, mass: 0.4 } as const;
 
 const DAY_COUNT_KEY = "tracker.dayCount";
 const VIEW_START_KEY = "tracker.viewStart";
@@ -201,6 +208,11 @@ export function TrackerApp({ userId }: { userId: string }) {
     if (dayCount === 7) return getWeekDays(viewStart);
     return Array.from({ length: dayCount }, (_, i) => addDays(viewStart, i));
   }, [viewStart, dayCount]);
+
+  // Clicking a day header widens that column and shrinks the rest evenly.
+  const [expandedDate, setExpandedDate] = useState<string | null>(null);
+  const expanded =
+    expandedDate && days.some((d) => toDateKey(d) === expandedDate) ? expandedDate : null;
 
   const gridRef = useRef<HTMLDivElement | null>(null);
   const scrollToToday = useCallback((behavior: ScrollBehavior = "smooth") => {
@@ -816,8 +828,7 @@ export function TrackerApp({ userId }: { userId: string }) {
             variant="outlined"
             ref={gridRef}
             sx={{
-              display: { xs: "flex", md: "grid" },
-              gridTemplateColumns: `repeat(${dayCount}, minmax(0, 1fr))`,
+              display: "flex",
               overflowX: { xs: "auto", md: "hidden" },
               scrollSnapType: { xs: "x mandatory", md: "none" },
               scrollPaddingLeft: 8,
@@ -835,6 +846,10 @@ export function TrackerApp({ userId }: { userId: string }) {
                   day={day}
                   label={format(day, "EEE")}
                   isToday={isToday}
+                  isExpanded={expanded === dateKey}
+                  onToggleExpand={() =>
+                    setExpandedDate((cur) => (cur === dateKey ? null : dateKey))
+                  }
                   background={getDayBackground(dayBackgrounds[day.getDay()])}
                   todos={dayTodos}
                   habits={habits}
@@ -886,6 +901,8 @@ function DayColumn({
   day,
   label,
   isToday,
+  isExpanded,
+  onToggleExpand,
   background,
   todos,
   habits,
@@ -901,6 +918,8 @@ function DayColumn({
   day: Date;
   label: string;
   isToday: boolean;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
   background: DayBackground | null;
   todos: Todo[];
   habits: Habit[];
@@ -918,6 +937,13 @@ function DayColumn({
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState("");
 
+  // Spring-driven width. On mobile the columns are fixed-width in a scrolling
+  // row, so there is no free space for flex-grow to claim and this is inert.
+  const grow = useSpring(isExpanded ? EXPANDED_GROW : 1, GROW_SPRING);
+  useEffect(() => {
+    grow.set(isExpanded ? EXPANDED_GROW : 1);
+  }, [isExpanded, grow]);
+
   function confirmAdd() {
     if (draft.trim()) onAdd(draft);
     setDraft("");
@@ -925,14 +951,16 @@ function DayColumn({
   }
 
   return (
-    <Box
+    <MotionBox
       ref={setNodeRef}
       data-date={dateKey}
       className="day-column"
+      style={{ flexGrow: grow }}
       sx={{
         width: { xs: "88vw", md: "auto" },
         maxWidth: { xs: 360, md: "none" },
         flexShrink: { xs: 0, md: 1 },
+        flexBasis: { xs: "auto", md: 0 },
         minWidth: 0,
         scrollSnapAlign: "start",
         display: "flex",
@@ -948,6 +976,17 @@ function DayColumn({
       }}
     >
       <Box
+        role="button"
+        tabIndex={0}
+        aria-expanded={isExpanded}
+        aria-label={`${isExpanded ? "Collapse" : "Expand"} ${format(day, "EEEE, MMM d")}`}
+        onClick={onToggleExpand}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onToggleExpand();
+          }
+        }}
         sx={{
           // Keeps the weekday visible while a long column scrolls past it.
           position: "sticky",
@@ -955,6 +994,8 @@ function DayColumn({
           zIndex: 1,
           px: 1.5,
           py: 1,
+          cursor: "pointer",
+          userSelect: "none",
           borderBottom: 1,
           borderColor: "divider",
           bgcolor: (t) =>
@@ -1107,7 +1148,7 @@ function DayColumn({
         )}
         <DayNoteArea value={note} onCommit={onNoteChange} title={format(day, "EEEE, MMM d")} />
       </Box>
-    </Box>
+    </MotionBox>
   );
 }
 
