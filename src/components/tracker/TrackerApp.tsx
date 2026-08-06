@@ -48,6 +48,7 @@ import Typography from "@mui/material/Typography";
 import AddIcon from "@mui/icons-material/Add";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import { BrandMark } from "./BrandMark";
 import CloseIcon from "@mui/icons-material/Close";
 import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
 import KeyboardDoubleArrowLeftIcon from "@mui/icons-material/KeyboardDoubleArrowLeft";
