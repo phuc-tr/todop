@@ -7,20 +7,16 @@ export function BrandMark() {
     <Stack direction="row" spacing={1.25} sx={{ alignItems: "center" }}>
       <Box
         aria-hidden
+        component="img"
+        src="/icon-512.png"
+        alt="Weekly Tracker"
         sx={{
           width: 32,
           height: 32,
           borderRadius: 2,
-          display: "grid",
-          placeItems: "center",
-          bgcolor: "primary.main",
-          color: "primary.contrastText",
-          fontWeight: 600,
-          fontSize: 15,
+          display: "block",
         }}
-      >
-        W
-      </Box>
+      />
       <Typography variant="h6" component="span" noWrap>
         Weekly Tracker
       </Typography>
