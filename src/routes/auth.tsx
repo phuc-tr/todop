@@ -1,11 +1,17 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Divider from "@mui/material/Divider";
+import Link from "@mui/material/Link";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import SvgIcon from "@mui/material/SvgIcon";
+import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { BrandMark } from "@/components/tracker/BrandMark";
 
 export const Route = createFileRoute("/auth")({
@@ -17,6 +23,29 @@ export const Route = createFileRoute("/auth")({
     ],
   }),
 });
+
+function GoogleIcon() {
+  return (
+    <SvgIcon viewBox="0 0 48 48">
+      <path
+        fill="#EA4335"
+        d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"
+      />
+      <path
+        fill="#4285F4"
+        d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"
+      />
+      <path
+        fill="#34A853"
+        d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
+      />
+    </SvgIcon>
+  );
+}
 
 function AuthPage() {
   const navigate = useNavigate();
@@ -65,70 +94,132 @@ function AuthPage() {
   }
 
   async function google() {
-    const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: window.location.origin,
+    });
     if (result.error) toast.error("Google sign in failed");
   }
 
+  const heading =
+    mode === "signin"
+      ? "Welcome back"
+      : mode === "signup"
+        ? "Create your account"
+        : "Reset your password";
+  const blurb =
+    mode === "signin"
+      ? "Sign in to continue."
+      : mode === "signup"
+        ? "Start tracking your week."
+        : "We'll email you a link to set a new password.";
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <div className="w-full max-w-sm">
-        <h1 className="mb-8 flex justify-center">
+    <Box
+      sx={{
+        minHeight: "100dvh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        bgcolor: "background.default",
+        px: 2,
+        py: 6,
+      }}
+    >
+      <Box sx={{ width: "100%", maxWidth: 400 }}>
+        <Box sx={{ display: "flex", justifyContent: "center", mb: 4 }}>
           <BrandMark />
-        </h1>
-        <div className="rounded-lg border border-border bg-card p-6">
-          <h2 className="font-editorial text-2xl mb-1.5">
-            {mode === "signin" ? "Welcome back" : mode === "signup" ? "Create your account" : "Reset your password"}
-          </h2>
-          <p className="text-sm text-muted-foreground mb-5">
-            {mode === "signin"
-              ? "Sign in to continue."
-              : mode === "signup"
-                ? "Start tracking your week."
-                : "We'll email you a link to set a new password."}
-          </p>
+        </Box>
+        <Paper variant="outlined" sx={{ p: 3 }}>
+          <Typography variant="h5" component="h1">
+            {heading}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 3 }}>
+            {blurb}
+          </Typography>
+
           {mode !== "forgot" && (
-          <><Button variant="outline" className="w-full mb-4" onClick={google} type="button">
-            <svg className="h-4 w-4 mr-2" viewBox="0 0 48 48" aria-hidden><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
-            Continue with Google
-          </Button>
-          <div className="relative my-4">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
-            <div className="relative flex justify-center"><span className="bg-card px-2 text-xs text-muted-foreground">or</span></div>
-          </div></>
+            <>
+              <Button
+                variant="outlined"
+                color="inherit"
+                fullWidth
+                size="large"
+                onClick={google}
+                startIcon={<GoogleIcon />}
+              >
+                Continue with Google
+              </Button>
+              <Divider sx={{ my: 2.5 }}>
+                <Typography variant="caption" color="text.secondary">
+                  or
+                </Typography>
+              </Divider>
+            </>
           )}
-          <form onSubmit={submit} className="space-y-3">
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-            </div>
+
+          <Stack component="form" onSubmit={submit} spacing={2}>
+            <TextField
+              label="Email"
+              type="email"
+              required
+              fullWidth
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
             {mode !== "forgot" && (
-            <div>
-              <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
-            </div>
+              <TextField
+                label="Password"
+                type="password"
+                required
+                fullWidth
+                autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                slotProps={{ htmlInput: { minLength: 6 } }}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
             )}
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Please wait…" : mode === "signin" ? "Sign in" : mode === "signup" ? "Create account" : "Send reset link"}
+            <Button type="submit" variant="contained" size="large" fullWidth disabled={loading}>
+              {loading
+                ? "Please wait…"
+                : mode === "signin"
+                  ? "Sign in"
+                  : mode === "signup"
+                    ? "Create account"
+                    : "Send reset link"}
             </Button>
-          </form>
-          {mode === "signin" && (
-            <button
+          </Stack>
+
+          <Stack spacing={1} sx={{ mt: 2.5, textAlign: "center" }}>
+            {mode === "signin" && (
+              <Link
+                component="button"
+                type="button"
+                variant="body2"
+                underline="hover"
+                color="text.secondary"
+                onClick={() => setMode("forgot")}
+              >
+                Forgot password?
+              </Link>
+            )}
+            <Link
+              component="button"
               type="button"
-              className="mt-3 w-full text-center text-sm text-muted-foreground hover:text-foreground"
-              onClick={() => setMode("forgot")}
+              variant="body2"
+              underline="hover"
+              color="text.secondary"
+              onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
             >
-              Forgot password?
-            </button>
-          )}
-          <button
-            type="button"
-            className="mt-4 w-full text-center text-sm text-muted-foreground hover:text-foreground"
-            onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-          >
-            {mode === "signin" ? "No account? Sign up" : mode === "signup" ? "Have an account? Sign in" : "Back to sign in"}
-          </button>
-        </div>
-      </div>
-    </div>
+              {mode === "signin"
+                ? "No account? Sign up"
+                : mode === "signup"
+                  ? "Have an account? Sign in"
+                  : "Back to sign in"}
+            </Link>
+          </Stack>
+        </Paper>
+      </Box>
+    </Box>
   );
 }

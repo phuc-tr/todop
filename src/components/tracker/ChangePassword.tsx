@@ -1,9 +1,12 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Collapse from "@mui/material/Collapse";
+import Stack from "@mui/material/Stack";
+import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 export function ChangePassword() {
   const [open, setOpen] = useState(false);
@@ -50,49 +53,58 @@ export function ChangePassword() {
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between">
-        <div>
-          <Label className="text-xs">Password</Label>
-          <p className="text-[11px] text-muted-foreground">Change the password for your account.</p>
-        </div>
-        <Button type="button" variant="outline" size="sm" onClick={() => setOpen((v) => !v)}>
+    <Box>
+      <Stack
+        direction="row"
+        spacing={2}
+        sx={{ alignItems: "center", justifyContent: "space-between" }}
+      >
+        <Box>
+          <Typography variant="subtitle2">Password</Typography>
+          <Typography variant="caption" color="text.secondary">
+            Change the password for your account.
+          </Typography>
+        </Box>
+        <Button variant="outlined" size="small" onClick={() => setOpen((v) => !v)}>
           {open ? "Cancel" : "Change"}
         </Button>
-      </div>
-      {open && (
-        <form onSubmit={submit} className="mt-3 space-y-2">
-          <Input
+      </Stack>
+      <Collapse in={open} unmountOnExit>
+        <Stack component="form" onSubmit={submit} spacing={1.5} sx={{ mt: 2 }}>
+          <TextField
             type="password"
-            placeholder="Current password"
+            label="Current password"
             autoComplete="current-password"
             value={current}
             onChange={(e) => setCurrent(e.target.value)}
             required
+            fullWidth
           />
-          <Input
+          <TextField
             type="password"
-            placeholder="New password"
+            label="New password"
             autoComplete="new-password"
-            minLength={6}
+            slotProps={{ htmlInput: { minLength: 6 } }}
             value={next}
             onChange={(e) => setNext(e.target.value)}
             required
+            fullWidth
           />
-          <Input
+          <TextField
             type="password"
-            placeholder="Confirm new password"
+            label="Confirm new password"
             autoComplete="new-password"
-            minLength={6}
+            slotProps={{ htmlInput: { minLength: 6 } }}
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             required
+            fullWidth
           />
-          <Button type="submit" size="sm" disabled={loading} className="w-full">
+          <Button type="submit" variant="contained" disabled={loading} fullWidth>
             {loading ? "Updating…" : "Update password"}
           </Button>
-        </form>
-      )}
-    </div>
+        </Stack>
+      </Collapse>
+    </Box>
   );
 }

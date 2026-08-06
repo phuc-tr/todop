@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import Box from "@mui/material/Box";
 import { supabase } from "@/integrations/supabase/client";
 import { TrackerApp } from "@/components/tracker/TrackerApp";
 
@@ -40,7 +41,7 @@ function Index() {
   }, [userId, navigate]);
 
   if (!userId) {
-    return <div className="min-h-screen bg-background" />;
+    return <Box sx={{ minHeight: "100dvh", bgcolor: "background.default" }} />;
   }
   return <TrackerApp userId={userId} />;
 }

@@ -1,17 +1,25 @@
 import { useEffect, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { DiceFive, PencilSimple, ImageSquare, X, Quotes, ListBullets } from "@phosphor-icons/react";
-import { cn } from "@/lib/utils";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
+import IconButton from "@mui/material/IconButton";
+import InputBase from "@mui/material/InputBase";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import TextField from "@mui/material/TextField";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import CasinoOutlinedIcon from "@mui/icons-material/CasinoOutlined";
+import CloseIcon from "@mui/icons-material/Close";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
+import FormatQuoteIcon from "@mui/icons-material/FormatQuote";
+import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 const COLLECTION_KEY = "tracker.quotes.collection";
 const CUSTOM_PREFIX = "tracker.quotes.custom.";
@@ -319,141 +327,202 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
     }
   }
 
+  // Over a photo the panel switches to light-on-scrim text; otherwise it reads
+  // as a normal outlined surface.
+  const onImage = Boolean(bgUrl);
+
+  const toolButtonSx = {
+    color: onImage ? "common.white" : "text.secondary",
+    "&:hover": { bgcolor: onImage ? "rgba(255,255,255,0.16)" : "action.hover" },
+  } as const;
+
   return (
-    <div
-      className={cn(
-        "reveal relative rounded-lg border bg-card px-5 py-4 w-full sm:flex-1 flex items-stretch gap-2 group overflow-hidden min-h-0 transition-shadow duration-200 hover:shadow-lift",
-        bgUrl ? "border-background/30 dark:border-background/45" : "border-border",
-      )}
-      style={
-        bgUrl
-          ? {
-              backgroundImage: `url(${bgUrl})`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-            }
-          : undefined
-      }
+    <Paper
+      variant={onImage ? "elevation" : "outlined"}
+      elevation={onImage ? 2 : 0}
+      sx={{
+        position: "relative",
+        overflow: "hidden",
+        px: 2.5,
+        py: 2,
+        width: "100%",
+        flex: { sm: 1 },
+        minWidth: 0,
+        minHeight: 0,
+        display: "flex",
+        alignItems: "stretch",
+        gap: 1,
+        backgroundImage: bgUrl ? `url(${bgUrl})` : undefined,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        transition: "box-shadow .2s",
+        "&:hover": { boxShadow: 3 },
+        "&:hover .quote-tools": { opacity: 1 },
+      }}
     >
-      {bgUrl && <div className="absolute -inset-px rounded-lg bg-black/45 pointer-events-none" />}
-      <div className="relative flex-1 min-w-0 flex flex-col overflow-hidden">
+      {onImage && (
+        <Box
+          aria-hidden
+          sx={{
+            position: "absolute",
+            inset: 0,
+            bgcolor: "rgba(0,0,0,0.45)",
+            pointerEvents: "none",
+          }}
+        />
+      )}
+
+      <Box
+        sx={{
+          position: "relative",
+          flex: 1,
+          minWidth: 0,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+        }}
+      >
         {mode === "text" ? (
-          <Textarea
+          <InputBase
+            multiline
             value={custom}
             onChange={(e) => saveCustom(e.target.value)}
             placeholder="Write anything…"
-            className={cn(
-              "flex-1 min-h-0 h-full text-sm resize-none bg-transparent border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-1 -mx-1 py-0.5",
-              bgUrl &&
-                "text-white placeholder:text-white/70 [text-shadow:0_1px_2px_rgba(0,0,0,0.7)]",
-            )}
+            sx={{
+              flex: 1,
+              alignItems: "flex-start",
+              p: 0,
+              fontSize: 14,
+              color: onImage ? "common.white" : "text.primary",
+              textShadow: onImage ? "0 1px 2px rgba(0,0,0,0.7)" : undefined,
+              "& textarea": { height: "100% !important", overflow: "auto !important" },
+              "& ::placeholder": { color: onImage ? "rgba(255,255,255,0.7)" : undefined },
+            }}
           />
         ) : (
-          <div
-            className={cn(
-              "font-editorial flex-1 min-h-0 w-full text-base leading-snug px-1 -mx-1 py-0.5 overflow-auto",
-              bgUrl
-                ? "text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.7)]"
-                : displayed
-                  ? "text-foreground"
-                  : "text-muted-foreground italic",
-            )}
+          <Typography
+            sx={{
+              flex: 1,
+              minHeight: 0,
+              overflow: "auto",
+              fontSize: 16,
+              lineHeight: 1.4,
+              fontStyle: displayed ? "normal" : "italic",
+              color: onImage ? "common.white" : displayed ? "text.primary" : "text.secondary",
+              textShadow: onImage ? "0 1px 2px rgba(0,0,0,0.7)" : undefined,
+            }}
           >
             {displayed || "No quotes yet — use the list icon to add some."}
-          </div>
+          </Typography>
         )}
-      </div>
-      <div
-        className={cn(
-          "relative flex flex-col gap-1 shrink-0 opacity-60 group-hover:opacity-100 transition-opacity",
-          bgUrl && "text-white [&_svg]:drop-shadow-[0_1px_2px_rgba(0,0,0,0.7)]",
-        )}
+      </Box>
+
+      <Stack
+        className="quote-tools"
+        spacing={0.25}
+        sx={{
+          position: "relative",
+          flexShrink: 0,
+          opacity: 0.55,
+          transition: "opacity .2s",
+          "&:focus-within": { opacity: 1 },
+          "& svg": onImage ? { filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.7))" } : undefined,
+        }}
       >
         <input
           ref={fileInputRef}
           type="file"
           accept="image/*"
-          className="hidden"
+          hidden
           onChange={(e) => {
             const f = e.target.files?.[0];
             if (f) handleFile(f);
           }}
         />
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6"
-          disabled={uploading}
-          onClick={() => {
-            if (bgUrl) clearBackground();
-            else fileInputRef.current?.click();
-          }}
-          title={bgUrl ? "Remove background" : "Set background image"}
-          aria-label={bgUrl ? "Remove background" : "Set background image"}
-        >
-          {bgUrl ? <X className="h-3.5 w-3.5" /> : <ImageSquare className="h-3.5 w-3.5" />}
-        </Button>
+        <Tooltip title={onImage ? "Remove background" : "Set background image"}>
+          <span>
+            <IconButton
+              size="small"
+              disabled={uploading}
+              onClick={() => {
+                if (onImage) clearBackground();
+                else fileInputRef.current?.click();
+              }}
+              aria-label={onImage ? "Remove background" : "Set background image"}
+              sx={toolButtonSx}
+            >
+              {onImage ? (
+                <CloseIcon sx={{ fontSize: 16 }} />
+              ) : (
+                <ImageOutlinedIcon sx={{ fontSize: 16 }} />
+              )}
+            </IconButton>
+          </span>
+        </Tooltip>
         {mode === "quote" && (
           <>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6"
-              onClick={shuffle}
-              title="Shuffle quote"
-              aria-label="Shuffle quote"
-            >
-              <DiceFive className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6"
-              onClick={openDialog}
-              title="Edit quote collection"
-              aria-label="Edit quote collection"
-            >
-              <ListBullets className="h-3.5 w-3.5" />
-            </Button>
+            <Tooltip title="Shuffle quote">
+              <IconButton
+                size="small"
+                onClick={shuffle}
+                aria-label="Shuffle quote"
+                sx={toolButtonSx}
+              >
+                <CasinoOutlinedIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Edit quote collection">
+              <IconButton
+                size="small"
+                onClick={openDialog}
+                aria-label="Edit quote collection"
+                sx={toolButtonSx}
+              >
+                <FormatListBulletedIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
           </>
         )}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6"
-          onClick={() => setModePersisted(mode === "text" ? "quote" : "text")}
-          title={mode === "text" ? "Switch to quotes" : "Switch to free text"}
-          aria-label={mode === "text" ? "Switch to quotes" : "Switch to free text"}
-        >
-          {mode === "text" ? (
-            <Quotes className="h-3.5 w-3.5" />
-          ) : (
-            <PencilSimple className="h-3.5 w-3.5" />
-          )}
-        </Button>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Quote collection</DialogTitle>
-            </DialogHeader>
-            <p className="text-xs text-muted-foreground">
-              One quote per line. Blank lines are ignored.
-            </p>
-            <Textarea
-              value={dialogDraft}
-              onChange={(e) => setDialogDraft(e.target.value)}
-              className="min-h-[240px] text-sm"
-              placeholder="Add one quote per line…"
-            />
-            <DialogFooter>
-              <Button variant="ghost" onClick={() => setDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={saveCollection}>Save</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-    </div>
+        <Tooltip title={mode === "text" ? "Switch to quotes" : "Switch to free text"}>
+          <IconButton
+            size="small"
+            onClick={() => setModePersisted(mode === "text" ? "quote" : "text")}
+            aria-label={mode === "text" ? "Switch to quotes" : "Switch to free text"}
+            sx={toolButtonSx}
+          >
+            {mode === "text" ? (
+              <FormatQuoteIcon sx={{ fontSize: 16 }} />
+            ) : (
+              <EditOutlinedIcon sx={{ fontSize: 16 }} />
+            )}
+          </IconButton>
+        </Tooltip>
+      </Stack>
+
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>Quote collection</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            One quote per line. Blank lines are ignored.
+          </Typography>
+          <TextField
+            multiline
+            minRows={10}
+            fullWidth
+            value={dialogDraft}
+            onChange={(e) => setDialogDraft(e.target.value)}
+            placeholder="Add one quote per line…"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button color="inherit" onClick={() => setDialogOpen(false)}>
+            Cancel
+          </Button>
+          <Button variant="contained" onClick={saveCollection}>
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Paper>
   );
 }

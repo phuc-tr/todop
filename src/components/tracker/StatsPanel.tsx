@@ -1,10 +1,62 @@
-import { Progress } from "@/components/ui/progress";
-import { Input } from "@/components/ui/input";
 import { useState } from "react";
-import { cn } from "@/lib/utils";
+import Box from "@mui/material/Box";
+import Input from "@mui/material/Input";
+import LinearProgress from "@mui/material/LinearProgress";
+import Link from "@mui/material/Link";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
 import { HabitIcon } from "./habitIcons";
 
-type HabitStat = { id: string; name: string; sum: number; goal: number; unit?: string; icon?: string };
+type HabitStat = {
+  id: string;
+  name: string;
+  sum: number;
+  goal: number;
+  unit?: string;
+  icon?: string;
+};
+
+function StatBar({
+  label,
+  value,
+  valueSlot,
+  done,
+}: {
+  label: React.ReactNode;
+  value: number;
+  valueSlot: React.ReactNode;
+  done: boolean;
+}) {
+  return (
+    <Box>
+      <Stack
+        direction="row"
+        spacing={1}
+        sx={{ alignItems: "center", justifyContent: "space-between", mb: 0.5 }}
+      >
+        {label}
+        <Typography
+          variant="caption"
+          sx={{
+            fontVariantNumeric: "tabular-nums",
+            color: done ? "success.main" : "text.secondary",
+            fontWeight: done ? 600 : 400,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {valueSlot}
+        </Typography>
+      </Stack>
+      <LinearProgress
+        variant="determinate"
+        value={value}
+        color={done ? "success" : "primary"}
+        sx={{ height: 6 }}
+      />
+    </Box>
+  );
+}
 
 export function StatsPanel({
   tasksDone,
@@ -24,14 +76,22 @@ export function StatsPanel({
   const taskDone = tasksGoal > 0 && tasksDone >= tasksGoal;
 
   return (
-    <div className="rounded-lg border border-border bg-card px-4 py-3 shadow-sm w-full sm:w-72">
-      <div className="space-y-3">
-        {/* Tasks */}
-        <div>
-          <div className="flex items-center justify-between text-xs mb-1">
-            <span className="font-medium text-muted-foreground">Tasks</span>
-            <span className="tabular-nums text-muted-foreground">
-              <span className={cn(taskDone && "text-success font-medium")}>{tasksDone}</span>
+    <Paper
+      variant="outlined"
+      sx={{ px: 2, py: 1.75, width: { xs: "100%", sm: 288 }, flexShrink: 0 }}
+    >
+      <Stack spacing={1.75}>
+        <StatBar
+          label={
+            <Typography variant="caption" sx={{ fontWeight: 500, color: "text.secondary" }}>
+              Tasks
+            </Typography>
+          }
+          value={taskPct}
+          done={taskDone}
+          valueSlot={
+            <>
+              {tasksDone}
               {" / "}
               {editing ? (
                 <Input
@@ -40,53 +100,64 @@ export function StatsPanel({
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   onBlur={() => {
-                    const n = parseInt(draft) || 0;
-                    onSetTasksGoal(n);
+                    onSetTasksGoal(parseInt(draft) || 0);
                     setEditing(false);
                   }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                    if (e.key === "Escape") { setDraft(String(tasksGoal)); setEditing(false); }
+                    if (e.key === "Escape") {
+                      setDraft(String(tasksGoal));
+                      setEditing(false);
+                    }
                   }}
-                  className="inline-block h-5 w-14 px-1 py-0 text-xs"
+                  sx={{ width: 56, fontSize: 12, "& input": { py: 0, textAlign: "right" } }}
                 />
               ) : (
-                <button
-                  className="underline-offset-2 hover:underline"
-                  onClick={() => { setDraft(String(tasksGoal)); setEditing(true); }}
+                <Link
+                  component="button"
+                  type="button"
+                  underline="hover"
+                  color="inherit"
+                  onClick={() => {
+                    setDraft(String(tasksGoal));
+                    setEditing(true);
+                  }}
+                  sx={{ font: "inherit", verticalAlign: "baseline" }}
                 >
                   {tasksGoal}
-                </button>
+                </Link>
               )}
-            </span>
-          </div>
-          <Progress
-            value={taskPct}
-            className={cn("h-1.5", taskDone && "[&>div]:bg-success")}
-          />
-        </div>
+            </>
+          }
+        />
 
-        {/* Habits */}
-        {habitStats.length > 0 && habitStats.map((h) => {
+        {habitStats.map((h) => {
           const pct = h.goal > 0 ? Math.min(100, (h.sum / h.goal) * 100) : 0;
           const done = h.goal > 0 && h.sum >= h.goal;
           const unit = h.unit?.trim();
           return (
-            <div key={h.id}>
-              <div className="flex items-center justify-between text-xs mb-1">
-                <span className="flex items-center gap-1 text-muted-foreground" title={h.name}>
-                  {h.icon && <HabitIcon name={h.icon} className="h-3 w-3 shrink-0" />}
-                  <span className="truncate">{h.name}</span>
-                </span>
-                <span className={cn("tabular-nums text-muted-foreground", done && "text-success font-medium")}>
-                  {h.sum} / {h.goal}{unit ? ` ${unit}` : ""}
-                </span>
-              </div>
-              <Progress value={pct} className={cn("h-1.5", done && "[&>div]:bg-success")} />
-            </div>
+            <StatBar
+              key={h.id}
+              value={pct}
+              done={done}
+              label={
+                <Stack
+                  direction="row"
+                  spacing={0.5}
+                  sx={{ alignItems: "center", minWidth: 0, color: "text.secondary" }}
+                  title={h.name}
+                >
+                  <HabitIcon name={h.icon} sx={{ fontSize: 14 }} />
+                  <Typography variant="caption" noWrap>
+                    {h.name}
+                  </Typography>
+                </Stack>
+              }
+              valueSlot={`${h.sum} / ${h.goal}${unit ? ` ${unit}` : ""}`}
+            />
           );
         })}
-      </div>
-    </div>
+      </Stack>
+    </Paper>
   );
 }

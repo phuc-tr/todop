@@ -1,10 +1,14 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Link from "@mui/material/Link";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { BrandMark } from "@/components/tracker/BrandMark";
 
 export const Route = createFileRoute("/reset-password")({
@@ -63,56 +67,77 @@ function ResetPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <div className="w-full max-w-sm">
-        <h1 className="mb-8 flex justify-center">
+    <Box
+      sx={{
+        minHeight: "100dvh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        bgcolor: "background.default",
+        px: 2,
+        py: 6,
+      }}
+    >
+      <Box sx={{ width: "100%", maxWidth: 400 }}>
+        <Box sx={{ display: "flex", justifyContent: "center", mb: 4 }}>
           <BrandMark />
-        </h1>
-        <div className="rounded-lg border border-border bg-card p-6">
-          <h2 className="font-editorial text-2xl mb-1.5">Set a new password</h2>
-          <p className="text-sm text-muted-foreground mb-5">
+        </Box>
+        <Paper variant="outlined" sx={{ p: 3 }}>
+          <Typography variant="h5" component="h1">
+            Set a new password
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 3 }}>
             {ready
               ? "Choose a new password for your account."
               : "Open this page from the reset link in your email."}
-          </p>
-          <form onSubmit={submit} className="space-y-3">
-            <div>
-              <Label htmlFor="new-password">New password</Label>
-              <Input
-                id="new-password"
-                type="password"
-                required
-                minLength={6}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={!ready}
-              />
-            </div>
-            <div>
-              <Label htmlFor="confirm-password">Confirm password</Label>
-              <Input
-                id="confirm-password"
-                type="password"
-                required
-                minLength={6}
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
-                disabled={!ready}
-              />
-            </div>
-            <Button type="submit" className="w-full" disabled={loading || !ready}>
+          </Typography>
+          <Stack component="form" onSubmit={submit} spacing={2}>
+            <TextField
+              label="New password"
+              type="password"
+              required
+              fullWidth
+              autoComplete="new-password"
+              slotProps={{ htmlInput: { minLength: 6 } }}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={!ready}
+            />
+            <TextField
+              label="Confirm password"
+              type="password"
+              required
+              fullWidth
+              autoComplete="new-password"
+              slotProps={{ htmlInput: { minLength: 6 } }}
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              disabled={!ready}
+            />
+            <Button
+              type="submit"
+              variant="contained"
+              size="large"
+              fullWidth
+              disabled={loading || !ready}
+            >
               {loading ? "Please wait…" : "Update password"}
             </Button>
-          </form>
-          <button
-            type="button"
-            className="mt-4 w-full text-center text-sm text-muted-foreground hover:text-foreground"
-            onClick={() => navigate({ to: "/auth" })}
-          >
-            Back to sign in
-          </button>
-        </div>
-      </div>
-    </div>
+          </Stack>
+          <Box sx={{ mt: 2.5, textAlign: "center" }}>
+            <Link
+              component="button"
+              type="button"
+              variant="body2"
+              underline="hover"
+              color="text.secondary"
+              onClick={() => navigate({ to: "/auth" })}
+            >
+              Back to sign in
+            </Link>
+          </Box>
+        </Paper>
+      </Box>
+    </Box>
   );
 }

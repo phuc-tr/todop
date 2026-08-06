@@ -24,55 +24,52 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { addDays, format, isSameDay } from "date-fns";
+import AppBar from "@mui/material/AppBar";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Checkbox from "@mui/material/Checkbox";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogContentText from "@mui/material/DialogContentText";
+import DialogTitle from "@mui/material/DialogTitle";
+import IconButton from "@mui/material/IconButton";
+import InputBase from "@mui/material/InputBase";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import ToggleButton from "@mui/material/ToggleButton";
+import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
+import Toolbar from "@mui/material/Toolbar";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import AddIcon from "@mui/icons-material/Add";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import CloseIcon from "@mui/icons-material/Close";
+import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
+import KeyboardDoubleArrowLeftIcon from "@mui/icons-material/KeyboardDoubleArrowLeft";
+import KeyboardDoubleArrowRightIcon from "@mui/icons-material/KeyboardDoubleArrowRight";
+import LightModeOutlinedIcon from "@mui/icons-material/LightModeOutlined";
+import LogoutIcon from "@mui/icons-material/Logout";
+import OpenInFullIcon from "@mui/icons-material/OpenInFull";
+import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
+import RemoveIcon from "@mui/icons-material/Remove";
 import { supabase } from "@/integrations/supabase/client";
 import { StatsPanel } from "./StatsPanel";
 import { SettingsDialog, type Habit } from "./SettingsDialog";
 import { QuotePanel } from "./QuotePanel";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { useTheme, type ThemeColor } from "@/lib/theme";
-import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Moon, Sun, LogOut, Plus, Minus, X, Maximize2 } from "lucide-react";
-import { toast } from "sonner";
+import { useAppTheme } from "@/lib/theme";
+import { ACCENTS, ACCENT_KEYS, type ThemeColor } from "@/lib/muiTheme";
+import { toast } from "@/lib/toast";
 import { HabitIcon } from "./habitIcons";
 import { playSound } from "@/lib/sound";
 import { fireConfetti, fireMiniConfetti } from "@/lib/celebration";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  getWeekDays,
-  getWeekStart,
-  toDateKey,
-} from "@/lib/week";
-import {
-  getDayBackground,
-  useDayBackgrounds,
-  type DayBackground,
-} from "@/lib/dayBackgrounds";
+import { getWeekDays, getWeekStart, toDateKey } from "@/lib/week";
+import { getDayBackground, useDayBackgrounds, type DayBackground } from "@/lib/dayBackgrounds";
 
 type Todo = {
   id: string;
@@ -109,15 +106,21 @@ function initialViewStart(count: DayCount): Date {
   return new Date(today.getFullYear(), today.getMonth(), today.getDate());
 }
 
-const THEME_COLORS: { value: ThemeColor; label: string; class: string }[] = [
-  { value: "blue", label: "Blue", class: "bg-[oklch(0.58_0.19_258)]" },
-  { value: "green", label: "Green", class: "bg-[oklch(0.55_0.18_150)]" },
-  { value: "purple", label: "Purple", class: "bg-[oklch(0.58_0.2_285)]" },
-  { value: "rose", label: "Rose", class: "bg-[oklch(0.58_0.2_20)]" },
-  { value: "orange", label: "Orange", class: "bg-[oklch(0.6_0.19_45)]" },
-  { value: "amber", label: "Amber", class: "bg-[oklch(0.62_0.17_80)]" },
-  { value: "mono", label: "Black & white", class: "bg-[conic-gradient(oklch(0.25_0_0)_0deg_180deg,oklch(0.95_0_0)_180deg_360deg)]" },
-];
+function Swatch({ color, size = 16 }: { color: string; size?: number }) {
+  return (
+    <Box
+      sx={{
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        background: color,
+        border: 1,
+        borderColor: "rgba(0,0,0,0.15)",
+        flexShrink: 0,
+      }}
+    />
+  );
+}
 
 function ThemeColorPicker({
   value,
@@ -126,35 +129,45 @@ function ThemeColorPicker({
   value: ThemeColor;
   onChange: (color: ThemeColor) => void;
 }) {
-  const active = THEME_COLORS.find((c) => c.value === value) ?? THEME_COLORS[0];
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Choose theme color" title="Theme color">
-          <span className={cn("h-4 w-4 rounded-full border border-black/10", active.class)} />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-[10rem]">
-        {THEME_COLORS.map((c) => (
-          <DropdownMenuItem
-            key={c.value}
-            onClick={() => onChange(c.value)}
-            className="cursor-pointer gap-2"
+    <>
+      <Tooltip title="Theme colour">
+        <IconButton onClick={(e) => setAnchor(e.currentTarget)} aria-label="Choose theme colour">
+          <PaletteOutlinedIcon />
+        </IconButton>
+      </Tooltip>
+      <Menu
+        anchorEl={anchor}
+        open={Boolean(anchor)}
+        onClose={() => setAnchor(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+      >
+        {ACCENT_KEYS.map((key) => (
+          <MenuItem
+            key={key}
+            selected={value === key}
+            onClick={() => {
+              onChange(key);
+              setAnchor(null);
+            }}
+            sx={{ gap: 1.5, minWidth: 180 }}
           >
-            <span className={cn("h-4 w-4 rounded-full border border-black/10", c.class)} />
-            <span className="flex-1">{c.label}</span>
-            {value === c.value && <span className="text-xs text-muted-foreground">Active</span>}
-          </DropdownMenuItem>
+            <Swatch color={ACCENTS[key].swatch} />
+            {ACCENTS[key].label}
+          </MenuItem>
         ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </Menu>
+    </>
   );
 }
 
 export function TrackerApp({ userId }: { userId: string }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const { theme, toggle, themeColor, setThemeColor } = useTheme();
+  const { mounted, mode, toggle, themeColor, setThemeColor } = useAppTheme();
   const [dayCount, setDayCountState] = useState<DayCount>(() => loadDayCount());
   const [viewStart, setViewStart] = useState<Date>(() => {
     const count = loadDayCount();
@@ -200,7 +213,9 @@ export function TrackerApp({ userId }: { userId: string }) {
 
   function goToday() {
     const t = new Date();
-    setViewStart(dayCount === 7 ? getWeekStart(t) : new Date(t.getFullYear(), t.getMonth(), t.getDate()));
+    setViewStart(
+      dayCount === 7 ? getWeekStart(t) : new Date(t.getFullYear(), t.getMonth(), t.getDate()),
+    );
     scrollToToday();
   }
 
@@ -368,7 +383,8 @@ export function TrackerApp({ userId }: { userId: string }) {
     const prevDone = todos.filter((x) => x.completed).length;
     const nextDone = prevDone + (nextCompleted ? 1 : -1);
     setTodos((prev) => prev.map((x) => (x.id === t.id ? { ...x, completed: nextCompleted } : x)));
-    if (!t.id.startsWith("tmp-")) updateTodo.mutate({ id: t.id, patch: { completed: nextCompleted } });
+    if (!t.id.startsWith("tmp-"))
+      updateTodo.mutate({ id: t.id, patch: { completed: nextCompleted } });
     if (nextCompleted) {
       playSound("complete");
       fireMiniConfetti();
@@ -473,7 +489,10 @@ export function TrackerApp({ userId }: { userId: string }) {
     (async () => {
       for (const u of updates) {
         if (u.id.startsWith("tmp-")) continue;
-        await supabase.from("todos").update({ sort_order: u.sort_order, date: u.date }).eq("id", u.id);
+        await supabase
+          .from("todos")
+          .update({ sort_order: u.sort_order, date: u.date })
+          .eq("id", u.id);
       }
     })().catch(() => {
       toast.error("Reorder failed");
@@ -482,7 +501,17 @@ export function TrackerApp({ userId }: { userId: string }) {
   }
 
   const createHabit = useMutation({
-    mutationFn: async ({ name, weekly_goal, unit, icon }: { name: string; weekly_goal: number; unit: string; icon: string }) => {
+    mutationFn: async ({
+      name,
+      weekly_goal,
+      unit,
+      icon,
+    }: {
+      name: string;
+      weekly_goal: number;
+      unit: string;
+      icon: string;
+    }) => {
       const { error } = await supabase
         .from("habits")
         .insert({ user_id: userId, name, weekly_goal, unit, icon, sort_order: habits.length });
@@ -498,7 +527,9 @@ export function TrackerApp({ userId }: { userId: string }) {
     onMutate: async ({ id, patch }) => {
       await qc.cancelQueries({ queryKey: ["habits", userId] });
       const prev = qc.getQueryData<Habit[]>(["habits", userId]);
-      qc.setQueryData<Habit[]>(["habits", userId], (p) => (p ?? []).map((h) => (h.id === id ? { ...h, ...patch } : h)));
+      qc.setQueryData<Habit[]>(["habits", userId], (p) =>
+        (p ?? []).map((h) => (h.id === id ? { ...h, ...patch } : h)),
+      );
       return { prev };
     },
     onError: (_e, _v, ctx) => {
@@ -517,7 +548,15 @@ export function TrackerApp({ userId }: { userId: string }) {
   });
 
   const upsertEntry = useMutation({
-    mutationFn: async ({ habit_id, date, value }: { habit_id: string; date: string; value: number }) => {
+    mutationFn: async ({
+      habit_id,
+      date,
+      value,
+    }: {
+      habit_id: string;
+      date: string;
+      value: number;
+    }) => {
       const { data, error } = await supabase
         .from("habit_entries")
         .upsert({ user_id: userId, habit_id, date, value }, { onConflict: "habit_id,date" })
@@ -603,62 +642,127 @@ export function TrackerApp({ userId }: { userId: string }) {
   const dayBackgrounds = useDayBackgrounds();
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b border-border">
-        <div className="mx-auto max-w-[1600px] px-4 sm:px-6 py-3 space-y-3">
+    <Box sx={{ minHeight: "100dvh", bgcolor: "background.default" }}>
+      <AppBar
+        position="static"
+        sx={{ bgcolor: "background.paper", borderBottom: 1, borderColor: "divider" }}
+      >
+        <Box sx={{ mx: "auto", width: "100%", maxWidth: 1600, px: { xs: 2, sm: 3 }, py: 1.5 }}>
           {/* Below md the date controls drop to their own full-width row so the
               icon cluster never wraps a single button onto a line of its own. */}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            <div className="flex items-center gap-2 min-w-0 order-1">
-              <div className="h-7 w-7 shrink-0 rounded-md bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold">W</div>
-              <h1 className="text-base font-medium tracking-tight whitespace-nowrap">Weekly Tracker</h1>
-              <span className="text-sm text-muted-foreground whitespace-nowrap hidden lg:inline">
+          <Toolbar disableGutters variant="dense" sx={{ flexWrap: "wrap", gap: 1, minHeight: 0 }}>
+            <Stack
+              direction="row"
+              spacing={1.5}
+              sx={{ alignItems: "center", minWidth: 0, order: 1 }}
+            >
+              <Box
+                aria-hidden
+                sx={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 1.5,
+                  display: "grid",
+                  placeItems: "center",
+                  bgcolor: (t) => `rgba(${t.vars.palette.primary.mainChannel} / 0.12)`,
+                  color: "primary.main",
+                  fontSize: 14,
+                  fontWeight: 600,
+                }}
+              >
+                W
+              </Box>
+              <Typography variant="h6" component="h1" noWrap>
+                Weekly Tracker
+              </Typography>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                noWrap
+                sx={{ display: { xs: "none", lg: "block" } }}
+              >
                 {formatRange(days[0], days[days.length - 1])}
-              </span>
-            </div>
-            <div className="flex items-center gap-0.5 shrink-0 w-full md:w-auto justify-between md:justify-end order-3 md:order-2 md:ml-auto">
-              <div className="flex items-center gap-0.5">
-                <Button variant="ghost" size="icon" onClick={() => setViewStart(addDays(viewStart, -dayCount))} aria-label="Previous span">
-                  <ChevronsLeft className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon" onClick={() => setViewStart(addDays(viewStart, -1))} aria-label="Previous day">
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon" onClick={() => setViewStart(addDays(viewStart, 1))} aria-label="Next day">
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon" onClick={() => setViewStart(addDays(viewStart, dayCount))} aria-label="Next span">
-                  <ChevronsRight className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="ml-1"
-                  onClick={goToday}
-                >
+              </Typography>
+            </Stack>
+
+            <Stack
+              direction="row"
+              sx={{
+                alignItems: "center",
+                gap: 1,
+                flexShrink: 0,
+                width: { xs: "100%", md: "auto" },
+                justifyContent: { xs: "space-between", md: "flex-end" },
+                order: { xs: 3, md: 2 },
+                ml: { md: "auto" },
+              }}
+            >
+              <Stack direction="row" spacing={0.25} sx={{ alignItems: "center" }}>
+                <Tooltip title="Previous span">
+                  <IconButton
+                    size="small"
+                    onClick={() => setViewStart(addDays(viewStart, -dayCount))}
+                    aria-label="Previous span"
+                  >
+                    <KeyboardDoubleArrowLeftIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Previous day">
+                  <IconButton
+                    size="small"
+                    onClick={() => setViewStart(addDays(viewStart, -1))}
+                    aria-label="Previous day"
+                  >
+                    <ChevronLeftIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Next day">
+                  <IconButton
+                    size="small"
+                    onClick={() => setViewStart(addDays(viewStart, 1))}
+                    aria-label="Next day"
+                  >
+                    <ChevronRightIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Next span">
+                  <IconButton
+                    size="small"
+                    onClick={() => setViewStart(addDays(viewStart, dayCount))}
+                    aria-label="Next span"
+                  >
+                    <KeyboardDoubleArrowRightIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Button variant="outlined" size="small" onClick={goToday} sx={{ ml: 0.5 }}>
                   Today
                 </Button>
-              </div>
-              <div className="flex items-center rounded-md border border-border overflow-hidden ml-2">
+              </Stack>
+
+              <ToggleButtonGroup
+                exclusive
+                size="small"
+                value={dayCount}
+                onChange={(_, v) => v && setDayCount(v as DayCount)}
+                aria-label="Days shown"
+              >
                 {([3, 4, 7] as const).map((n) => (
-                  <button
-                    key={n}
-                    onClick={() => setDayCount(n)}
-                    className={cn(
-                      "px-2.5 py-1 text-xs font-medium transition-colors",
-                      dayCount === n
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:bg-muted",
-                    )}
-                    aria-pressed={dayCount === n}
-                    aria-label={`Show ${n} days`}
-                  >
+                  <ToggleButton key={n} value={n} aria-label={`Show ${n} days`} sx={{ px: 1.5 }}>
                     {n}d
-                  </button>
+                  </ToggleButton>
                 ))}
-              </div>
-            </div>
-            <div className="flex items-center gap-0.5 shrink-0 ml-auto md:ml-0 order-2 md:order-3">
+              </ToggleButtonGroup>
+            </Stack>
+
+            <Stack
+              direction="row"
+              sx={{
+                alignItems: "center",
+                flexShrink: 0,
+                ml: { xs: "auto", md: 0 },
+                order: { xs: 2, md: 3 },
+              }}
+            >
               <SettingsDialog
                 habits={habits}
                 tasksGoal={tasksGoal}
@@ -668,15 +772,28 @@ export function TrackerApp({ userId }: { userId: string }) {
                 onSetTasksGoal={(g) => setTasksGoal.mutate(g)}
               />
               <ThemeColorPicker value={themeColor} onChange={setThemeColor} />
-              <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
-                {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              </Button>
-              <Button variant="ghost" size="icon" onClick={signOut} aria-label="Sign out">
-                <LogOut className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-          <div className="flex flex-col-reverse sm:flex-row justify-end items-stretch gap-3">
+              <Tooltip title={mode === "dark" ? "Light mode" : "Dark mode"}>
+                <IconButton onClick={toggle} aria-label="Toggle light and dark mode">
+                  {mounted && mode === "dark" ? (
+                    <LightModeOutlinedIcon />
+                  ) : (
+                    <DarkModeOutlinedIcon />
+                  )}
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Sign out">
+                <IconButton onClick={signOut} aria-label="Sign out">
+                  <LogoutIcon />
+                </IconButton>
+              </Tooltip>
+            </Stack>
+          </Toolbar>
+
+          <Stack
+            direction={{ xs: "column-reverse", sm: "row" }}
+            spacing={1.5}
+            sx={{ alignItems: "stretch", justifyContent: "flex-end", mt: 1.5 }}
+          >
             <QuotePanel weekKey={toDateKey(getWeekStart(days[0]))} />
             <StatsPanel
               tasksDone={tasksDone}
@@ -684,16 +801,27 @@ export function TrackerApp({ userId }: { userId: string }) {
               habitStats={habitStats}
               onSetTasksGoal={(g) => setTasksGoal.mutate(g)}
             />
-          </div>
-        </div>
-      </header>
+          </Stack>
+        </Box>
+      </AppBar>
 
-      <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <main className="mx-auto max-w-[1600px] px-2 sm:px-4 py-4">
-          <div
+      <DndContext
+        sensors={sensors}
+        collisionDetection={collisionDetection}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <Box component="main" sx={{ mx: "auto", maxWidth: 1600, px: { xs: 1, sm: 2 }, py: 2 }}>
+          <Paper
+            variant="outlined"
             ref={gridRef}
-            className="flex md:grid gap-px bg-border rounded-lg overflow-x-auto md:overflow-hidden snap-x snap-mandatory md:snap-none -mx-2 sm:mx-0 px-2 sm:px-0 scroll-px-2 sm:scroll-px-0"
-            style={{ gridTemplateColumns: `repeat(${dayCount}, minmax(0, 1fr))` }}
+            sx={{
+              display: { xs: "flex", md: "grid" },
+              gridTemplateColumns: `repeat(${dayCount}, minmax(0, 1fr))`,
+              overflowX: { xs: "auto", md: "hidden" },
+              scrollSnapType: { xs: "x mandatory", md: "none" },
+              scrollPaddingLeft: 8,
+            }}
           >
             {days.map((day) => {
               const dateKey = toDateKey(day);
@@ -721,31 +849,36 @@ export function TrackerApp({ userId }: { userId: string }) {
                 />
               );
             })}
-          </div>
-        </main>
+          </Paper>
+        </Box>
         <DragOverlay>
           {activeTodo ? (
-            <div className="rounded-md border border-border bg-card px-2 py-1.5 shadow-lg text-sm">
+            <Paper elevation={6} sx={{ px: 1.5, py: 1, fontSize: 14, cursor: "grabbing" }}>
               {activeTodo.title || "Untitled"}
-            </div>
+            </Paper>
           ) : null}
         </DragOverlay>
       </DndContext>
 
-      <Dialog open={goalCelebration} onOpenChange={setGoalCelebration}>
-        <DialogContent className="max-w-sm text-center">
-          <DialogHeader>
-            <DialogTitle className="text-center text-xl">🎉 Weekly goal reached!</DialogTitle>
-            <DialogDescription className="text-center">
-              You've completed {tasksGoal} {tasksGoal === 1 ? "task" : "tasks"} this week. Nice work.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="sm:justify-center">
-            <Button onClick={() => setGoalCelebration(false)}>Keep going</Button>
-          </DialogFooter>
+      <Dialog
+        open={goalCelebration}
+        onClose={() => setGoalCelebration(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ textAlign: "center" }}>🎉 Weekly goal reached!</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ textAlign: "center" }}>
+            You've completed {tasksGoal} {tasksGoal === 1 ? "task" : "tasks"} this week. Nice work.
+          </DialogContentText>
         </DialogContent>
+        <DialogActions sx={{ justifyContent: "center", pb: 2.5 }}>
+          <Button variant="contained" onClick={() => setGoalCelebration(false)}>
+            Keep going
+          </Button>
+        </DialogActions>
       </Dialog>
-    </div>
+    </Box>
   );
 }
 
@@ -792,164 +925,295 @@ function DayColumn({
   }
 
   return (
-    <div
+    <Box
       ref={setNodeRef}
       data-date={dateKey}
-      className={cn(
-        "bg-background w-[88vw] max-w-[360px] shrink-0 md:w-auto md:max-w-none md:min-w-0 md:flex-1 snap-start flex flex-col group/col",
-        isOver && "bg-primary-soft/40",
-      )}
+      className="day-column"
+      sx={{
+        width: { xs: "88vw", md: "auto" },
+        maxWidth: { xs: 360, md: "none" },
+        flexShrink: { xs: 0, md: 1 },
+        minWidth: 0,
+        scrollSnapAlign: "start",
+        display: "flex",
+        flexDirection: "column",
+        borderRight: 1,
+        borderColor: "divider",
+        "&:last-of-type": { borderRight: 0 },
+        bgcolor: (t) =>
+          isOver ? `rgba(${t.vars.palette.primary.mainChannel} / 0.1)` : "background.paper",
+        transition: "background-color .15s",
+        // Row affordances stay hidden until the column is hovered or focused.
+        "&:hover .col-affordance, &:focus-within .col-affordance": { opacity: 1 },
+      }}
     >
-      <div
-        className={cn(
-          "relative px-3 py-2 border-b border-border sticky top-0 bg-background z-10 overflow-hidden",
-          isToday && !background && "bg-today",
-        )}
-        style={
-          background
-            ? {
+      <Box
+        sx={{
+          // Keeps the weekday visible while a long column scrolls past it.
+          position: "sticky",
+          top: 0,
+          zIndex: 1,
+          px: 1.5,
+          py: 1,
+          borderBottom: 1,
+          borderColor: "divider",
+          bgcolor: (t) =>
+            isToday && !background
+              ? `rgba(${t.vars.palette.primary.mainChannel} / 0.08)`
+              : "background.paper",
+        }}
+      >
+        {background && (
+          <>
+            {/* Bleeds 1px past the bottom padding edge so the image covers the
+                translucent divider border, which otherwise blends with the paper
+                background into a bright hairline under the tile. */}
+            <Box
+              aria-hidden
+              sx={{
+                position: "absolute",
+                left: 0,
+                right: 0,
+                top: 0,
+                bottom: -1,
                 backgroundImage: `url(${background.src})`,
                 backgroundSize: "cover",
                 backgroundPosition: background.position ?? "center",
-              }
-            : undefined
-        }
-      >
-        {/* Scrim keeps the label legible over both light and dark tiles. */}
-        {background && <div className="absolute inset-0 bg-background/55" aria-hidden />}
-        <div className="relative">
-          <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
-          <div className={cn("text-lg font-medium tabular-nums", isToday && "text-primary")}>
+              }}
+            />
+            {/* Scrim keeps the label legible over both light and dark tiles. */}
+            <Box
+              aria-hidden
+              sx={{
+                position: "absolute",
+                left: 0,
+                right: 0,
+                top: 0,
+                bottom: -1,
+                bgcolor: (t) => `rgba(${t.vars.palette.background.defaultChannel} / 0.55)`,
+              }}
+            />
+          </>
+        )}
+        <Box sx={{ position: "relative" }}>
+          <Typography
+            variant="overline"
+            color="text.secondary"
+            // Whole-pixel line height: a fractional header height makes the
+            // bottom edge land mid-pixel and antialias into a bright seam.
+            sx={{ display: "block", lineHeight: "20px" }}
+          >
+            {label}
+          </Typography>
+          <Typography
+            variant="h6"
+            component="div"
+            sx={{
+              fontVariantNumeric: "tabular-nums",
+              color: isToday ? "primary.main" : "text.primary",
+              fontWeight: isToday ? 600 : 500,
+            }}
+          >
             {day.getDate()}
-          </div>
-        </div>
-      </div>
-      <SortableContext items={todos.map((t) => t.id)} strategy={verticalListSortingStrategy} id={`day-${dateKey}`}>
-        <div className="px-2 py-2 space-y-0.5 min-h-[140px]">
+          </Typography>
+        </Box>
+      </Box>
+
+      <SortableContext
+        items={todos.map((t) => t.id)}
+        strategy={verticalListSortingStrategy}
+        id={`day-${dateKey}`}
+      >
+        <Box sx={{ px: 0.5, py: 1, minHeight: 140 }}>
           {todos.map((t) => (
             <TodoRow key={t.id} todo={t} onToggle={onToggle} onEdit={onEdit} onDelete={onDelete} />
           ))}
           {adding ? (
-            <div className="flex items-center gap-1.5 px-1.5 py-1">
-              <Input
+            <Box sx={{ px: 0.5, py: 0.5 }}>
+              <InputBase
                 autoFocus
+                fullWidth
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 onBlur={confirmAdd}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") confirmAdd();
-                  if (e.key === "Escape") { setDraft(""); setAdding(false); }
+                  if (e.key === "Escape") {
+                    setDraft("");
+                    setAdding(false);
+                  }
                 }}
                 placeholder="New task…"
-                className="h-7 text-sm"
+                sx={{
+                  fontSize: 14,
+                  px: 1,
+                  py: 0.25,
+                  borderRadius: 1.5,
+                  border: 1,
+                  borderColor: "primary.main",
+                }}
               />
-            </div>
+            </Box>
           ) : (
-            <button
+            <Button
+              className={todos.length === 0 ? undefined : "col-affordance"}
               onClick={() => setAdding(true)}
-              className="w-full flex items-center gap-1.5 px-2 py-1 text-xs text-muted-foreground opacity-0 group-hover/col:opacity-100 focus:opacity-100 transition-opacity"
-            >
-              <Plus className="h-3 w-3" /> Add a task…
-            </button>
-          )}
-          {todos.length === 0 && !adding && (
-            <button
-              onClick={() => setAdding(true)}
-              className="w-full text-left px-2 py-1 text-xs text-muted-foreground/60 italic"
+              startIcon={<AddIcon sx={{ fontSize: 14 }} />}
+              size="small"
+              color="inherit"
+              fullWidth
+              sx={{
+                justifyContent: "flex-start",
+                color: "text.secondary",
+                fontSize: 12,
+                fontWeight: 400,
+                borderRadius: 1.5,
+                opacity: todos.length === 0 ? 0.75 : 0,
+                transition: "opacity .15s",
+              }}
             >
               Add a task…
-            </button>
+            </Button>
           )}
-        </div>
+        </Box>
       </SortableContext>
 
-      <div className="mt-auto">
+      <Box sx={{ mt: "auto" }}>
         {habits.length > 0 && (
-          <div className="border-t border-border px-2 py-2 space-y-1">
+          <Stack spacing={0.5} sx={{ borderTop: 1, borderColor: "divider", px: 1, py: 1 }}>
             {habits.map((h) => {
-            const entry = entries.find((e) => e.habit_id === h.id && e.date === dateKey);
-            return (
-              <div key={h.id} className="flex items-center gap-2">
-                <div
-                  className="text-[11px] text-muted-foreground truncate flex-1 flex items-center gap-1"
-                  title={h.unit ? `${h.name} (${h.unit})` : h.name}
-                >
-                  {h.icon && <HabitIcon name={h.icon} className="h-3 w-3 shrink-0" />}
-                  <span className="truncate">{h.name}</span>
-                </div>
-                <HabitInput
-                  initialValue={entry ? String(entry.value) : ""}
-                  onCommit={(v) => onEntry(h.id, dateKey, v)}
-                />
-              </div>
-            );
+              const entry = entries.find((e) => e.habit_id === h.id && e.date === dateKey);
+              return (
+                <Stack key={h.id} direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                  <Stack
+                    direction="row"
+                    spacing={0.5}
+                    sx={{ alignItems: "center", flex: 1, minWidth: 0, color: "text.secondary" }}
+                    title={h.unit ? `${h.name} (${h.unit})` : h.name}
+                  >
+                    <HabitIcon name={h.icon} sx={{ fontSize: 14 }} />
+                    <Typography variant="caption" noWrap>
+                      {h.name}
+                    </Typography>
+                  </Stack>
+                  <HabitInput
+                    initialValue={entry ? String(entry.value) : ""}
+                    onCommit={(v) => onEntry(h.id, dateKey, v)}
+                  />
+                </Stack>
+              );
             })}
-          </div>
+          </Stack>
         )}
         <DayNoteArea value={note} onCommit={onNoteChange} title={format(day, "EEEE, MMM d")} />
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }
 
-function DayNoteArea({ value, onCommit, title }: { value: string; onCommit: (v: string) => void; title: string }) {
+function DayNoteArea({
+  value,
+  onCommit,
+  title,
+}: {
+  value: string;
+  onCommit: (v: string) => void;
+  title: string;
+}) {
   const [draft, setDraft] = useState(value);
   const [focused, setFocused] = useState(false);
   useEffect(() => setDraft(value), [value]);
 
-  const commit = (v: string) => { if (v !== value) onCommit(v); };
+  const commit = (v: string) => {
+    if (v !== value) onCommit(v);
+  };
 
   return (
-    <div className="border-t border-border px-2 py-2">
-      <div className="flex items-center justify-between mb-1">
-        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Notes</div>
-        <button
-          type="button"
-          onClick={() => setFocused(true)}
-          title="Edit full screen"
-          aria-label="Edit note full screen"
-          className="text-muted-foreground/60 hover:text-foreground opacity-0 group-hover/col:opacity-100 focus-visible:opacity-100 transition-opacity"
-        >
-          <Maximize2 className="h-3 w-3" />
-        </button>
-      </div>
-      <textarea
+    <Box sx={{ borderTop: 1, borderColor: "divider", px: 1.5, py: 1 }}>
+      <Stack
+        direction="row"
+        sx={{ alignItems: "center", justifyContent: "space-between", mb: 0.5 }}
+      >
+        <Typography variant="overline" color="text.secondary" sx={{ fontSize: 10 }}>
+          Notes
+        </Typography>
+        <Tooltip title="Edit full screen">
+          <IconButton
+            className="col-affordance"
+            size="small"
+            onClick={() => setFocused(true)}
+            aria-label="Edit note full screen"
+            sx={{ opacity: 0, transition: "opacity .15s", color: "text.secondary" }}
+          >
+            <OpenInFullIcon sx={{ fontSize: 12 }} />
+          </IconButton>
+        </Tooltip>
+      </Stack>
+      <InputBase
+        multiline
+        fullWidth
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={() => commit(draft)}
         placeholder="Add a note…"
-        className="w-full min-h-[200px] text-xs resize-none bg-transparent border-0 outline-none p-0 placeholder:text-muted-foreground/50 focus:outline-none overflow-y-auto scrollbar-subtle"
+        sx={{
+          p: 0,
+          fontSize: 12,
+          alignItems: "flex-start",
+          // Fixed height (not autosized) so a long note scrolls in place
+          // instead of stretching the column past its neighbours.
+          "& textarea": { height: "200px !important", overflow: "auto !important", resize: "none" },
+        }}
       />
 
       <Dialog
         open={focused}
-        onOpenChange={(open) => {
-          if (!open) commit(draft);
-          setFocused(open);
+        onClose={() => {
+          commit(draft);
+          setFocused(false);
         }}
+        fullWidth
+        maxWidth="md"
       >
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Notes — {title}</DialogTitle>
-            <DialogDescription className="sr-only">Edit the note for this day</DialogDescription>
-          </DialogHeader>
-          <textarea
+        <DialogTitle>Notes — {title}</DialogTitle>
+        <DialogContent>
+          <InputBase
             autoFocus
+            multiline
+            fullWidth
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             placeholder="Add a note…"
-            className="w-full h-[60vh] text-sm resize-none bg-transparent border-0 outline-none p-0 placeholder:text-muted-foreground/50 focus:outline-none overflow-y-auto scrollbar-subtle"
+            sx={{
+              fontSize: 14,
+              alignItems: "flex-start",
+              "& textarea": { height: "60vh !important", overflow: "auto !important" },
+            }}
           />
-          <DialogFooter>
-            <Button size="sm" onClick={() => { commit(draft); setFocused(false); }}>Done</Button>
-          </DialogFooter>
         </DialogContent>
+        <DialogActions>
+          <Button
+            variant="contained"
+            onClick={() => {
+              commit(draft);
+              setFocused(false);
+            }}
+          >
+            Done
+          </Button>
+        </DialogActions>
       </Dialog>
-    </div>
+    </Box>
   );
 }
 
-function HabitInput({ initialValue, onCommit }: { initialValue: string; onCommit: (v: string) => void }) {
+function HabitInput({
+  initialValue,
+  onCommit,
+}: {
+  initialValue: string;
+  onCommit: (v: string) => void;
+}) {
   const [val, setVal] = useState(initialValue);
   useEffect(() => setVal(initialValue), [initialValue]);
   const num = val === "" ? 0 : Number(val) || 0;
@@ -960,49 +1224,81 @@ function HabitInput({ initialValue, onCommit }: { initialValue: string; onCommit
     if (nextStr !== initialValue) onCommit(nextStr);
   };
   const filled = val !== "" && num > 0;
+
+  const stepperSx = {
+    width: 24,
+    height: 28,
+    borderRadius: 0,
+    opacity: 0,
+    transition: "opacity .15s",
+    color: "inherit",
+    ".habit-input:hover &, .habit-input:focus-within &": { opacity: 1 },
+    "&.Mui-disabled": { opacity: 0 },
+  } as const;
+
   return (
-    <div
-      className={cn(
-        "group/hi inline-flex items-center h-7 rounded-full border transition-colors",
-        filled
-          ? "border-primary/30 bg-primary/10 text-primary"
-          : "border-border/60 bg-muted/40 text-muted-foreground hover:bg-muted"
-      )}
+    <Box
+      className="habit-input"
+      sx={{
+        display: "inline-flex",
+        alignItems: "center",
+        height: 28,
+        borderRadius: 999,
+        overflow: "hidden",
+        border: 1,
+        transition: "background-color .15s, border-color .15s",
+        borderColor: filled ? "primary.main" : "divider",
+        bgcolor: (t) =>
+          filled ? `rgba(${t.vars.palette.primary.mainChannel} / 0.1)` : "action.hover",
+        color: filled ? "primary.main" : "text.secondary",
+      }}
     >
-      <button
-        type="button"
+      <IconButton
+        size="small"
         onClick={() => step(-1)}
         disabled={num <= 0}
         aria-label="Decrease"
-        className="h-7 w-6 inline-flex items-center justify-center rounded-l-full opacity-0 group-hover/hi:opacity-100 focus-within:opacity-100 disabled:opacity-0 hover:bg-black/5 dark:hover:bg-white/10 transition-opacity"
+        sx={stepperSx}
       >
-        <Minus className="h-3 w-3" />
-      </button>
-      <input
-        type="text"
-        inputMode="numeric"
-        pattern="[0-9]*"
+        <RemoveIcon sx={{ fontSize: 13 }} />
+      </IconButton>
+      <InputBase
         value={val}
         onChange={(e) => setVal(e.target.value.replace(/[^0-9]/g, ""))}
-        onBlur={() => { if (val !== initialValue) onCommit(val); }}
+        onBlur={() => {
+          if (val !== initialValue) onCommit(val);
+        }}
         onKeyDown={(e) => {
           if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-          else if (e.key === "ArrowUp") { e.preventDefault(); step(1); }
-          else if (e.key === "ArrowDown") { e.preventDefault(); step(-1); }
+          else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            step(1);
+          } else if (e.key === "ArrowDown") {
+            e.preventDefault();
+            step(-1);
+          }
         }}
         onFocus={(e) => e.currentTarget.select()}
         placeholder="0"
-        className="w-6 h-7 bg-transparent text-center text-xs font-medium tabular-nums outline-none placeholder:text-muted-foreground/50 placeholder:font-normal"
+        slotProps={{
+          input: { inputMode: "numeric", pattern: "[0-9]*", "aria-label": "Habit value" },
+        }}
+        sx={{
+          width: 26,
+          color: "inherit",
+          "& input": {
+            p: 0,
+            textAlign: "center",
+            fontSize: 12,
+            fontWeight: 500,
+            fontVariantNumeric: "tabular-nums",
+          },
+        }}
       />
-      <button
-        type="button"
-        onClick={() => step(1)}
-        aria-label="Increase"
-        className="h-7 w-6 inline-flex items-center justify-center rounded-r-full opacity-0 group-hover/hi:opacity-100 focus-within:opacity-100 hover:bg-black/5 dark:hover:bg-white/10 transition-opacity"
-      >
-        <Plus className="h-3 w-3" />
-      </button>
-    </div>
+      <IconButton size="small" onClick={() => step(1)} aria-label="Increase" sx={stepperSx}>
+        <AddIcon sx={{ fontSize: 13 }} />
+      </IconButton>
+    </Box>
   );
 }
 
@@ -1017,89 +1313,139 @@ function TodoRow({
   onEdit: (t: Todo, title: string) => void;
   onDelete: (t: Todo) => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: todo.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: todo.id,
+  });
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(todo.title);
   const [confirmOpen, setConfirmOpen] = useState(false);
   useEffect(() => setDraft(todo.title), [todo.title]);
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.4 : 1,
-  };
-
   return (
-    <div
+    <Box
       ref={setNodeRef}
-      style={style}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.4 : 1,
+      }}
       {...attributes}
       {...(editing ? {} : listeners)}
-      className={cn(
-        "group flex items-center gap-1.5 px-1.5 py-1 rounded-md hover:bg-muted/60 transition-colors touch-manipulation select-none",
-        isDragging && "shadow-sm ring-1 ring-primary/40",
-        editing ? "cursor-text" : "cursor-grab active:cursor-grabbing",
-      )}
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 0.5,
+        pl: 0.25,
+        pr: 0.5,
+        borderRadius: 1.5,
+        touchAction: "manipulation",
+        userSelect: "none",
+        cursor: editing ? "text" : "grab",
+        "&:active": { cursor: editing ? "text" : "grabbing" },
+        "&:hover": { bgcolor: "action.hover" },
+        "&:hover .todo-delete, &:focus-within .todo-delete": { opacity: 1 },
+        boxShadow: isDragging ? 2 : 0,
+      }}
     >
       <Checkbox
+        size="small"
         checked={todo.completed}
-        onCheckedChange={() => onToggle(todo)}
-        className="h-3.5 w-3.5"
+        onChange={() => onToggle(todo)}
+        slotProps={{ input: { "aria-label": todo.title || "Untitled task" } }}
+        icon={<RadioButtonUncheckedIcon sx={{ fontSize: 18 }} />}
+        checkedIcon={<CheckCircleIcon sx={{ fontSize: 18 }} />}
+        sx={{ p: 0.75, color: "primary.main" }}
       />
       {editing ? (
-        <Input
+        <InputBase
           autoFocus
+          fullWidth
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          onBlur={() => { if (draft !== todo.title) onEdit(todo, draft); setEditing(false); }}
+          onBlur={() => {
+            if (draft !== todo.title) onEdit(todo, draft);
+            setEditing(false);
+          }}
           onPointerDown={(e) => e.stopPropagation()}
           onKeyDown={(e) => {
             e.stopPropagation();
             if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-            if (e.key === "Escape") { setDraft(todo.title); setEditing(false); }
+            if (e.key === "Escape") {
+              setDraft(todo.title);
+              setEditing(false);
+            }
           }}
-          className="h-6 text-sm px-1 flex-1"
+          sx={{ flex: 1, fontSize: 14, "& input": { p: 0 } }}
         />
       ) : (
-        <button
+        <Box
+          component="button"
           onClick={() => setEditing(true)}
-          className={cn(
-            "flex-1 text-left text-sm truncate transition-colors",
-            todo.completed && "line-through text-muted-foreground",
-          )}
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            textAlign: "left",
+            font: "inherit",
+            fontSize: 14,
+            background: "none",
+            border: 0,
+            p: 0,
+            cursor: "text",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            color: todo.completed ? "text.secondary" : "text.primary",
+            textDecoration: todo.completed ? "line-through" : "none",
+            fontStyle: todo.title ? "normal" : "italic",
+          }}
         >
-          {todo.title || <span className="text-muted-foreground italic">Untitled</span>}
-        </button>
+          {todo.title || "Untitled"}
+        </Box>
       )}
-      <button
+      <IconButton
+        className="todo-delete"
+        size="small"
         onPointerDown={(e) => e.stopPropagation()}
-        onClick={(e) => { e.stopPropagation(); setConfirmOpen(true); }}
-        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
-        aria-label="Delete"
+        onClick={(e) => {
+          e.stopPropagation();
+          setConfirmOpen(true);
+        }}
+        aria-label="Delete task"
+        sx={{
+          opacity: 0,
+          transition: "opacity .15s, color .15s",
+          color: "text.secondary",
+          "&:hover": { color: "error.main" },
+        }}
       >
-        <X className="h-3.5 w-3.5" />
-      </button>
-      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this task?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {todo.title
-                ? <>“{todo.title}” will be permanently removed.</>
-                : <>This task will be permanently removed.</>}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => { onDelete(todo); setConfirmOpen(false); }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
+        <CloseIcon sx={{ fontSize: 14 }} />
+      </IconButton>
+
+      <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Delete this task?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {todo.title
+              ? `“${todo.title}” will be permanently removed.`
+              : "This task will be permanently removed."}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button color="inherit" onClick={() => setConfirmOpen(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={() => {
+              onDelete(todo);
+              setConfirmOpen(false);
+            }}
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 }

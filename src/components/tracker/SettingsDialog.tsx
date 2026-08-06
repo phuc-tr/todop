@@ -1,19 +1,26 @@
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Switch } from "@/components/ui/switch";
-import { Gear, Trash, Plus, Smiley } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import ButtonBase from "@mui/material/ButtonBase";
+import Collapse from "@mui/material/Collapse";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
+import Divider from "@mui/material/Divider";
+import IconButton from "@mui/material/IconButton";
+import Paper from "@mui/material/Paper";
+import Popover from "@mui/material/Popover";
+import Stack from "@mui/material/Stack";
+import Switch from "@mui/material/Switch";
+import TextField from "@mui/material/TextField";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import AddIcon from "@mui/icons-material/Add";
+import CloseIcon from "@mui/icons-material/Close";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
+import SettingsIcon from "@mui/icons-material/SettingsOutlined";
+import SentimentSatisfiedAltIcon from "@mui/icons-material/SentimentSatisfiedAlt";
 import { HABIT_ICON_KEYS, HABIT_ICONS, HabitIcon } from "./habitIcons";
-import { cn } from "@/lib/utils";
 import { getSoundEnabled, setSoundEnabled } from "@/lib/sound";
 import { ChangePassword } from "./ChangePassword";
 import { DAY_LABELS } from "@/lib/week";
@@ -34,154 +41,244 @@ export type Habit = {
   icon: string;
 };
 
-function IconPicker({ value, onChange }: { value: string; onChange: (icon: string) => void }) {
-  const Current = value ? HABIT_ICONS[value] : null;
+/** Section heading + optional description, shared by every settings block. */
+function SettingRow({
+  title,
+  description,
+  action,
+  children,
+}: {
+  title: string;
+  description?: string;
+  action?: React.ReactNode;
+  children?: React.ReactNode;
+}) {
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          className="h-9 w-9 shrink-0"
-          aria-label="Choose icon"
-        >
-          {Current ? (
-            <Current className="h-4 w-4" />
-          ) : (
-            <Smiley className="h-4 w-4 text-muted-foreground" />
+    <Box>
+      <Stack
+        direction="row"
+        spacing={2}
+        sx={{ alignItems: "center", justifyContent: "space-between" }}
+      >
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="subtitle2">{title}</Typography>
+          {description && (
+            <Typography variant="caption" color="text.secondary">
+              {description}
+            </Typography>
           )}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-64 p-2">
-        <div className="grid grid-cols-6 gap-1">
-          <button
-            type="button"
-            onClick={() => onChange("")}
-            className={cn(
-              "h-8 w-8 rounded-md flex items-center justify-center text-[10px] text-muted-foreground hover:bg-muted",
-              !value && "ring-2 ring-ring",
-            )}
+        </Box>
+        {action}
+      </Stack>
+      {children && <Box sx={{ mt: 1.5 }}>{children}</Box>}
+    </Box>
+  );
+}
+
+function IconPicker({ value, onChange }: { value: string; onChange: (icon: string) => void }) {
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const Current = value ? HABIT_ICONS[value] : null;
+
+  function pick(key: string) {
+    onChange(key);
+    setAnchor(null);
+  }
+
+  return (
+    <>
+      <Tooltip title="Choose icon">
+        <IconButton
+          onClick={(e) => setAnchor(e.currentTarget)}
+          aria-label="Choose icon"
+          sx={{
+            border: 1,
+            borderColor: "divider",
+            borderRadius: 2,
+            width: 40,
+            height: 40,
+            flexShrink: 0,
+            color: value ? "primary.main" : "text.disabled",
+          }}
+        >
+          {Current ? <Current fontSize="small" /> : <SentimentSatisfiedAltIcon fontSize="small" />}
+        </IconButton>
+      </Tooltip>
+      <Popover
+        open={Boolean(anchor)}
+        anchorEl={anchor}
+        onClose={() => setAnchor(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+      >
+        <Box
+          sx={{
+            p: 1,
+            width: 264,
+            display: "grid",
+            gridTemplateColumns: "repeat(6, 1fr)",
+            gap: 0.5,
+          }}
+        >
+          <ButtonBase
+            onClick={() => pick("")}
             aria-label="No icon"
+            sx={{
+              height: 36,
+              borderRadius: 1.5,
+              fontSize: 11,
+              color: "text.secondary",
+              bgcolor: !value ? "action.selected" : undefined,
+              "&:hover": { bgcolor: "action.hover" },
+            }}
           >
             None
-          </button>
+          </ButtonBase>
           {HABIT_ICON_KEYS.map((key) => {
             const Icon = HABIT_ICONS[key];
+            const selected = value === key;
             return (
-              <button
+              <ButtonBase
                 key={key}
-                type="button"
-                onClick={() => onChange(key)}
-                className={cn(
-                  "h-8 w-8 rounded-md flex items-center justify-center hover:bg-muted",
-                  value === key && "bg-primary/10 text-primary ring-2 ring-ring",
-                )}
+                onClick={() => pick(key)}
                 aria-label={key}
                 title={key}
+                sx={{
+                  height: 36,
+                  borderRadius: 1.5,
+                  color: selected ? "primary.main" : "text.secondary",
+                  bgcolor: selected ? "action.selected" : undefined,
+                  "&:hover": { bgcolor: "action.hover" },
+                }}
               >
-                <Icon className="h-4 w-4" />
-              </button>
+                <Icon fontSize="small" />
+              </ButtonBase>
             );
           })}
-        </div>
-      </PopoverContent>
-    </Popover>
+        </Box>
+      </Popover>
+    </>
   );
 }
 
 function DayBackgroundPicker() {
   const map = useDayBackgrounds();
   const anySet = WEEKDAY_ORDER.some((d) => map[d]);
-  // The grid lives inline rather than in a Popover: a popover portals outside
-  // the dialog, where the dialog's scroll lock eats wheel events on it.
+  // The grid stays inline rather than living in a popover: a popover portals
+  // outside the dialog, where the dialog's scroll lock eats its wheel events.
   const [openDay, setOpenDay] = useState<number | null>(null);
   const openSelected = openDay === null ? null : getDayBackground(map[openDay]);
+
   return (
-    <div>
-      <div className="flex items-center justify-between">
-        <div>
-          <Label className="text-xs">Day backgrounds</Label>
-          <p className="text-[11px] text-muted-foreground">
-            An image behind each weekday's header.
-          </p>
-        </div>
-        {anySet && (
-          <Button type="button" variant="ghost" size="sm" onClick={clearDayBackgrounds}>
+    <SettingRow
+      title="Day backgrounds"
+      description="An image behind each weekday's header."
+      action={
+        anySet ? (
+          <Button size="small" color="inherit" onClick={clearDayBackgrounds}>
             Reset
           </Button>
-        )}
-      </div>
-      <div className="mt-2 flex flex-wrap gap-2">
+        ) : undefined
+      }
+    >
+      <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1 }}>
         {WEEKDAY_ORDER.map((weekday, i) => {
           const selected = getDayBackground(map[weekday]);
+          const isOpen = openDay === weekday;
           return (
-            <button
+            <ButtonBase
               key={weekday}
-              type="button"
-              onClick={() => setOpenDay(openDay === weekday ? null : weekday)}
-              className="flex flex-col items-center gap-1 rounded-md p-1 hover:bg-muted"
-              aria-expanded={openDay === weekday}
+              onClick={() => setOpenDay(isOpen ? null : weekday)}
+              aria-expanded={isOpen}
               aria-label={`Background for ${DAY_LABELS[i]}`}
+              sx={{ flexDirection: "column", gap: 0.5, borderRadius: 2, p: 0.5 }}
             >
-              <span
-                className={cn(
-                  "h-10 w-10 rounded-md border border-border bg-cover bg-center flex items-center justify-center text-[9px] text-muted-foreground",
-                  !selected && "bg-muted",
-                  openDay === weekday && "ring-2 ring-ring",
-                )}
-                style={selected ? { backgroundImage: `url(${selected.src})` } : undefined}
+              <Box
+                sx={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 2,
+                  border: 2,
+                  borderColor: isOpen ? "primary.main" : "divider",
+                  bgcolor: selected ? undefined : "action.hover",
+                  backgroundImage: selected ? `url(${selected.src})` : undefined,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                  display: "grid",
+                  placeItems: "center",
+                  fontSize: 9,
+                  color: "text.disabled",
+                }}
               >
                 {!selected && "None"}
-              </span>
-              <span className="text-[10px] text-muted-foreground">{DAY_LABELS[i]}</span>
-            </button>
+              </Box>
+              <Typography variant="caption" color="text.secondary">
+                {DAY_LABELS[i]}
+              </Typography>
+            </ButtonBase>
           );
         })}
-      </div>
-      {openDay !== null && (
-        <div className="mt-2 rounded-lg border border-border p-2">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-[11px] font-medium">
-              {DAY_LABELS[WEEKDAY_ORDER.indexOf(openDay)]}
-            </span>
-            <button
-              type="button"
-              onClick={() => setDayBackground(openDay, null)}
-              className={cn(
-                "rounded-md border border-border px-2 py-0.5 text-[10px] text-muted-foreground hover:bg-muted",
-                !openSelected && "ring-2 ring-ring",
-              )}
+      </Stack>
+
+      <Collapse in={openDay !== null} unmountOnExit>
+        {openDay !== null && (
+          <Paper variant="outlined" sx={{ mt: 1.5, p: 1.5 }}>
+            <Stack
+              direction="row"
+              sx={{ alignItems: "center", justifyContent: "space-between", mb: 1.5 }}
             >
-              None
-            </button>
-          </div>
-          {BACKGROUND_SETS.map((set) => (
-            <div key={set.id} className="mb-2 last:mb-0">
-              <div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-                {set.label}
-              </div>
-              <div className="grid grid-cols-8 gap-1.5">
-                {set.items.map((bg) => (
-                  <button
-                    key={bg.id}
-                    type="button"
-                    onClick={() => setDayBackground(openDay, bg.id)}
-                    className={cn(
-                      "aspect-square w-full rounded-md border border-border bg-cover bg-center hover:opacity-80",
-                      openSelected?.id === bg.id && "ring-2 ring-ring",
-                    )}
-                    style={{ backgroundImage: `url(${bg.src})` }}
-                    title={bg.label}
-                    aria-label={bg.label}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+              <Typography variant="subtitle2">
+                {DAY_LABELS[WEEKDAY_ORDER.indexOf(openDay)]}
+              </Typography>
+              <Button
+                size="small"
+                variant={openSelected ? "text" : "outlined"}
+                color="inherit"
+                onClick={() => setDayBackground(openDay, null)}
+              >
+                None
+              </Button>
+            </Stack>
+            {BACKGROUND_SETS.map((set) => (
+              <Box key={set.id} sx={{ "&:not(:last-of-type)": { mb: 1.5 } }}>
+                <Typography
+                  variant="overline"
+                  color="text.secondary"
+                  sx={{ display: "block", lineHeight: 1.8 }}
+                >
+                  {set.label}
+                </Typography>
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(8, 1fr)",
+                    gap: 0.75,
+                  }}
+                >
+                  {set.items.map((bg) => (
+                    <ButtonBase
+                      key={bg.id}
+                      onClick={() => setDayBackground(openDay, bg.id)}
+                      title={bg.label}
+                      aria-label={bg.label}
+                      sx={{
+                        aspectRatio: "1 / 1",
+                        borderRadius: 1.5,
+                        border: 2,
+                        borderColor: openSelected?.id === bg.id ? "primary.main" : "divider",
+                        backgroundImage: `url(${bg.src})`,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                        transition: "opacity .15s",
+                        "&:hover": { opacity: 0.82 },
+                      }}
+                    />
+                  ))}
+                </Box>
+              </Box>
+            ))}
+          </Paper>
+        )}
+      </Collapse>
+    </SettingRow>
   );
 }
 
@@ -200,144 +297,169 @@ export function SettingsDialog({
   onDeleteHabit: (id: string) => void;
   onSetTasksGoal: (goal: number) => void;
 }) {
+  const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [goal, setGoal] = useState("");
   const [unit, setUnit] = useState("");
   const [icon, setIcon] = useState("");
   const [sound, setSound] = useState<boolean>(() => getSoundEnabled());
+
   useEffect(() => {
     const handler = (e: Event) => setSound((e as CustomEvent<boolean>).detail);
     window.addEventListener("tracker:sound-changed", handler);
     return () => window.removeEventListener("tracker:sound-changed", handler);
   }, []);
+
+  function addHabit() {
+    if (!name.trim()) return;
+    onCreateHabit({
+      name: name.trim(),
+      weekly_goal: parseInt(goal) || 0,
+      unit: unit.trim(),
+      icon,
+    });
+    setName("");
+    setGoal("");
+    setUnit("");
+    setIcon("");
+  }
+
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Settings">
-          <Gear className="h-4 w-4" />
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto scrollbar-subtle">
-        <DialogHeader>
-          <DialogTitle className="font-editorial text-2xl">Settings</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label className="text-xs">Weekly task goal</Label>
-            <Input
-              type="number"
-              value={tasksGoal}
-              onChange={(e) => onSetTasksGoal(parseInt(e.target.value) || 0)}
-              className="mt-1"
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-xs">Sound effects</Label>
-              <p className="text-[11px] text-muted-foreground">
-                Play a chime on completion and delete.
-              </p>
-            </div>
-            <Switch
-              checked={sound}
-              onCheckedChange={(v) => {
-                setSound(v);
-                setSoundEnabled(v);
-              }}
-              aria-label="Toggle sound effects"
-            />
-          </div>
-          <DayBackgroundPicker />
-          <div className="border-t border-border pt-4">
-            <ChangePassword />
-          </div>
-          <div>
-            <Label className="text-xs">Habits</Label>
-            <div className="mt-2 space-y-2">
-              {habits.map((h) => (
-                <div key={h.id} className="flex items-center gap-2">
-                  <IconPicker
-                    value={h.icon ?? ""}
-                    onChange={(v) => onUpdateHabit(h.id, { icon: v })}
-                  />
-                  <Input
-                    value={h.name}
-                    onChange={(e) => onUpdateHabit(h.id, { name: e.target.value })}
-                    className="flex-1"
-                    placeholder="Name"
-                  />
-                  <Input
-                    value={h.unit ?? ""}
-                    onChange={(e) => onUpdateHabit(h.id, { unit: e.target.value })}
-                    className="w-20"
-                    placeholder="Unit"
-                  />
-                  <Input
-                    type="number"
-                    value={h.weekly_goal}
-                    onChange={(e) =>
-                      onUpdateHabit(h.id, { weekly_goal: parseInt(e.target.value) || 0 })
-                    }
-                    className="w-16"
-                    placeholder="Goal"
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => onDeleteHabit(h.id)}
-                    aria-label="Delete habit"
-                  >
-                    <Trash className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-              {habits.length === 0 && (
-                <p className="text-xs text-muted-foreground">No habits yet.</p>
-              )}
-            </div>
-            <div className="mt-3 flex items-center gap-2">
-              <IconPicker value={icon} onChange={setIcon} />
-              <Input
-                placeholder="Name (e.g. LeetCode)"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="flex-1"
-              />
-              <Input
-                placeholder="Unit"
-                value={unit}
-                onChange={(e) => setUnit(e.target.value)}
-                className="w-20"
-              />
-              <Input
+    <>
+      <Tooltip title="Settings">
+        <IconButton onClick={() => setOpen(true)} aria-label="Settings">
+          <SettingsIcon />
+        </IconButton>
+      </Tooltip>
+      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm" scroll="paper">
+        <DialogTitle
+          sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pr: 1.5 }}
+        >
+          Settings
+          <IconButton onClick={() => setOpen(false)} aria-label="Close settings" size="small">
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={3} divider={<Divider flexItem />}>
+            <SettingRow title="Weekly task goal" description="Tasks to complete across the week.">
+              <TextField
                 type="number"
-                placeholder="Goal"
-                value={goal}
-                onChange={(e) => setGoal(e.target.value)}
-                className="w-16"
+                value={tasksGoal}
+                onChange={(e) => onSetTasksGoal(parseInt(e.target.value) || 0)}
+                sx={{ width: 140 }}
               />
-              <Button
-                type="button"
-                onClick={() => {
-                  if (!name.trim()) return;
-                  onCreateHabit({
-                    name: name.trim(),
-                    weekly_goal: parseInt(goal) || 0,
-                    unit: unit.trim(),
-                    icon,
-                  });
-                  setName("");
-                  setGoal("");
-                  setUnit("");
-                  setIcon("");
-                }}
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+            </SettingRow>
+
+            <SettingRow
+              title="Sound effects"
+              description="Play a chime on completion and delete."
+              action={
+                <Switch
+                  checked={sound}
+                  onChange={(e) => {
+                    setSound(e.target.checked);
+                    setSoundEnabled(e.target.checked);
+                  }}
+                  slotProps={{ input: { "aria-label": "Toggle sound effects" } }}
+                />
+              }
+            />
+
+            <DayBackgroundPicker />
+
+            <ChangePassword />
+
+            <SettingRow title="Habits" description="Tracked next to each day's tasks.">
+              <Stack spacing={1.5}>
+                {habits.map((h) => (
+                  <Stack key={h.id} direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                    <IconPicker
+                      value={h.icon ?? ""}
+                      onChange={(v) => onUpdateHabit(h.id, { icon: v })}
+                    />
+                    <TextField
+                      value={h.name}
+                      onChange={(e) => onUpdateHabit(h.id, { name: e.target.value })}
+                      placeholder="Name"
+                      sx={{ flex: 1, minWidth: 0 }}
+                    />
+                    <TextField
+                      value={h.unit ?? ""}
+                      onChange={(e) => onUpdateHabit(h.id, { unit: e.target.value })}
+                      placeholder="Unit"
+                      sx={{ width: 80 }}
+                    />
+                    <TextField
+                      type="number"
+                      value={h.weekly_goal}
+                      onChange={(e) =>
+                        onUpdateHabit(h.id, { weekly_goal: parseInt(e.target.value) || 0 })
+                      }
+                      placeholder="Goal"
+                      sx={{ width: 76 }}
+                    />
+                    <Tooltip title="Delete habit">
+                      <IconButton onClick={() => onDeleteHabit(h.id)} aria-label="Delete habit">
+                        <DeleteOutlineIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </Stack>
+                ))}
+                {habits.length === 0 && (
+                  <Typography variant="body2" color="text.secondary">
+                    No habits yet.
+                  </Typography>
+                )}
+
+                <Stack
+                  component="form"
+                  direction="row"
+                  spacing={1}
+                  onSubmit={(e: React.FormEvent) => {
+                    e.preventDefault();
+                    addHabit();
+                  }}
+                  sx={{ alignItems: "center", pt: 0.5 }}
+                >
+                  <IconPicker value={icon} onChange={setIcon} />
+                  <TextField
+                    placeholder="Name (e.g. LeetCode)"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    sx={{ flex: 1, minWidth: 0 }}
+                  />
+                  <TextField
+                    placeholder="Unit"
+                    value={unit}
+                    onChange={(e) => setUnit(e.target.value)}
+                    sx={{ width: 80 }}
+                  />
+                  <TextField
+                    type="number"
+                    placeholder="Goal"
+                    value={goal}
+                    onChange={(e) => setGoal(e.target.value)}
+                    sx={{ width: 76 }}
+                  />
+                  <Tooltip title="Add habit">
+                    <span>
+                      <IconButton
+                        type="submit"
+                        color="primary"
+                        disabled={!name.trim()}
+                        aria-label="Add habit"
+                      >
+                        <AddIcon />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                </Stack>
+              </Stack>
+            </SettingRow>
+          </Stack>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

@@ -46,6 +46,8 @@ Full drag-and-drop support for todos:
 
 ## Design & Theme
 
+- Built on [Material UI](https://mui.com) following Material Design: components come from `@mui/material`, icons from `@mui/icons-material`, and all styling goes through the `sx` prop or the theme in `src/lib/muiTheme.ts` — no utility-class framework.
+- Light and dark mode are Material UI colour schemes, one per accent colour (`light-rose`, `dark-mono`, …), applied as a class on `<html>` before hydration so neither the mode nor the accent flashes on load.
 - Minimalistic, clean, lots of whitespace — visually similar to Google Calendar: thin light borders between day columns, simple sans-serif typography, restrained color use (one accent color, e.g., Google-blue).
 - Light and dark theme with a toggle in the header; remember the user's preference.
 - Responsive / mobile-friendly: on narrow screens, collapse the 7-column grid into a vertically scrollable list of days (or a swipeable single-day view), keep the stats panel accessible at the top, and make sure drag-and-drop still works with touch.

@@ -1,38 +1,56 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
-  Link,
   createRootRouteWithContext,
   useRouter,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import InitColorSchemeScript from "@mui/material/InitColorSchemeScript";
 
-import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { ThemeProvider } from "@/lib/theme";
-import { Toaster } from "@/components/ui/sonner";
+import { AppThemeProvider } from "@/lib/theme";
+import { ToastHost } from "@/lib/toast";
+
+/** Full-bleed centred slot shared by the 404 and error screens. */
+function CenteredMessage({ children }: { children: ReactNode }) {
+  return (
+    <Box
+      sx={{
+        minHeight: "100dvh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        px: 2,
+        bgcolor: "background.default",
+      }}
+    >
+      <Box sx={{ maxWidth: 440, textAlign: "center" }}>{children}</Box>
+    </Box>
+  );
+}
 
 function NotFoundComponent() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="font-editorial text-7xl text-foreground">404</h1>
-        <h2 className="mt-4 font-editorial text-2xl text-foreground">Page not found</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
-        </p>
-        <div className="mt-6">
-          <Link
-            to="/"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-[color,background-color,transform] duration-200 active:scale-[0.98] hover:bg-primary/90"
-          >
-            Go home
-          </Link>
-        </div>
-      </div>
-    </div>
+    <CenteredMessage>
+      <Typography variant="h1" sx={{ fontWeight: 300, color: "text.primary" }}>
+        404
+      </Typography>
+      <Typography variant="h5" sx={{ mt: 2 }}>
+        Page not found
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+        The page you're looking for doesn't exist or has been moved.
+      </Typography>
+      <Button variant="contained" href="/" sx={{ mt: 4 }}>
+        Go home
+      </Button>
+    </CenteredMessage>
   );
 }
 
@@ -44,31 +62,26 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   }, [error]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="font-editorial text-2xl text-foreground">This page didn't load</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
-        </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
-          <button
-            onClick={() => {
-              router.invalidate();
-              reset();
-            }}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-[color,background-color,transform] duration-200 active:scale-[0.98] hover:bg-primary/90"
-          >
-            Try again
-          </button>
-          <a
-            href="/"
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-[color,background-color,transform] duration-200 active:scale-[0.98] hover:bg-accent"
-          >
-            Go home
-          </a>
-        </div>
-      </div>
-    </div>
+    <CenteredMessage>
+      <Typography variant="h5">This page didn't load</Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+        Something went wrong on our end. You can try refreshing or head back home.
+      </Typography>
+      <Stack direction="row" spacing={1.5} sx={{ justifyContent: "center", mt: 4 }}>
+        <Button
+          variant="contained"
+          onClick={() => {
+            router.invalidate();
+            reset();
+          }}
+        >
+          Try again
+        </Button>
+        <Button variant="outlined" href="/">
+          Go home
+        </Button>
+      </Stack>
+    </CenteredMessage>
   );
 }
 
@@ -94,15 +107,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "theme-color", content: "#faf9f7" },
+      { name: "theme-color", content: "#f7f8fa" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-title", content: "Tracker" },
       { name: "apple-mobile-web-app-status-bar-style", content: "default" },
     ],
     links: [
+      { rel: "preconnect", href: "https://fonts.googleapis.com" },
+      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: appCss,
+        href: "https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap",
       },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
       { rel: "manifest", href: "/manifest.webmanifest" },
@@ -115,16 +130,32 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: ErrorComponent,
 });
 
+/**
+ * Carries preferences saved by the pre-Material UI theme switcher over to the
+ * keys Material UI's colour-scheme manager reads. Runs once, before
+ * InitColorSchemeScript picks the scheme for the first paint.
+ */
+const LEGACY_THEME_MIGRATION = `try{
+  if(!localStorage.getItem('mui-mode')){
+    var t=localStorage.getItem('theme');
+    if(t==='light'||t==='dark')localStorage.setItem('mui-mode',t);
+  }
+  if(!localStorage.getItem('mui-color-scheme-light')){
+    var c=localStorage.getItem('themeColor');
+    if(c&&c!=='blue'){
+      localStorage.setItem('mui-color-scheme-light','light-'+c);
+      localStorage.setItem('mui-color-scheme-dark','dark-'+c);
+    }
+  }
+}catch(e){}`;
+
 function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `try{var t=localStorage.getItem('theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.classList.add('dark');var c=localStorage.getItem('themeColor');if(c)document.documentElement.setAttribute('data-theme-color',c);}catch(e){}`,
-          }}
-        />
+        <script dangerouslySetInnerHTML={{ __html: LEGACY_THEME_MIGRATION }} />
+        <InitColorSchemeScript attribute="class" defaultMode="system" />
       </head>
       <body>
         {children}
@@ -139,11 +170,11 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
+      <AppThemeProvider>
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
-        <Toaster />
-      </ThemeProvider>
+        <ToastHost />
+      </AppThemeProvider>
     </QueryClientProvider>
   );
 }

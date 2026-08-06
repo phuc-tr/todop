@@ -1,58 +1,40 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
+import CssBaseline from "@mui/material/CssBaseline";
+import { ThemeProvider, useColorScheme } from "@mui/material/styles";
+import { parseScheme, schemeName, theme, type Mode, type ThemeColor } from "./muiTheme";
 
-type Theme = "light" | "dark";
-export type ThemeColor = "blue" | "green" | "purple" | "rose" | "orange" | "amber" | "mono";
+export type { ThemeColor, Mode };
 
-const ThemeCtx = createContext<{
-  theme: Theme;
-  themeColor: ThemeColor;
-  toggle: () => void;
-  setThemeColor: (color: ThemeColor) => void;
-}>({
-  theme: "light",
-  themeColor: "blue",
-  toggle: () => {},
-  setThemeColor: () => {},
-});
-
-const THEME_KEY = "theme";
-const THEME_COLOR_KEY = "themeColor";
-
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("light");
-  const [themeColor, setThemeColorState] = useState<ThemeColor>("blue");
-
-  useEffect(() => {
-    const storedTheme = localStorage.getItem(THEME_KEY) as Theme | null;
-    const storedColor = localStorage.getItem(THEME_COLOR_KEY) as ThemeColor | null;
-    const initialTheme =
-      storedTheme ?? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-    setTheme(initialTheme);
-    if (storedColor) setThemeColorState(storedColor);
-  }, []);
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
-    localStorage.setItem(THEME_KEY, theme);
-  }, [theme]);
-
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme-color", themeColor);
-    localStorage.setItem(THEME_COLOR_KEY, themeColor);
-  }, [themeColor]);
-
+export function AppThemeProvider({ children }: { children: ReactNode }) {
   return (
-    <ThemeCtx.Provider
-      value={{
-        theme,
-        themeColor,
-        toggle: () => setTheme((t) => (t === "light" ? "dark" : "light")),
-        setThemeColor: setThemeColorState,
-      }}
-    >
+    <ThemeProvider theme={theme} defaultMode="system" disableTransitionOnChange>
+      <CssBaseline />
       {children}
-    </ThemeCtx.Provider>
+    </ThemeProvider>
   );
 }
 
-export const useTheme = () => useContext(ThemeCtx);
+/**
+ * Thin wrapper over Material UI's colour-scheme manager that splits the active
+ * scheme back into the two axes the UI exposes: light/dark and accent colour.
+ * `mounted` is false during SSR and the hydration render, where the resolved
+ * scheme isn't known yet — controls that mirror it should stay neutral until then.
+ */
+export function useAppTheme() {
+  const { mode, setMode, colorScheme, setColorScheme } = useColorScheme();
+
+  const mounted = colorScheme !== undefined;
+  const resolvedMode: Mode = colorScheme?.startsWith("dark") ? "dark" : "light";
+  const themeColor = parseScheme(colorScheme);
+
+  return {
+    mounted,
+    mode: resolvedMode,
+    /** The stored preference, which may be "system". */
+    modePreference: mode,
+    toggle: () => setMode(resolvedMode === "dark" ? "light" : "dark"),
+    themeColor,
+    setThemeColor: (accent: ThemeColor) =>
+      setColorScheme({ light: schemeName("light", accent), dark: schemeName("dark", accent) }),
+  };
+}
