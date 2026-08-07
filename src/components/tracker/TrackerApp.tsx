@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   DndContext,
@@ -72,6 +73,7 @@ import { playSound } from "@/lib/sound";
 import { fireConfetti, fireMiniConfetti } from "@/lib/celebration";
 import { getWeekDays, getWeekStart, toDateKey } from "@/lib/week";
 import { getDayBackground, useDayBackgrounds, type DayBackground } from "@/lib/dayBackgrounds";
+import { fetchLinkPreview } from "@/lib/linkPreview.functions";
 
 type Todo = {
   id: string;
@@ -84,7 +86,7 @@ type Todo = {
 type Entry = { id: string; habit_id: string; date: string; value: number };
 type DayNote = { date: string; content: string };
 
-type DayCount = 3 | 4 | 7;
+type DayCount = 3 | 5 | 7;
 
 function formatRange(start: Date, end: Date): string {
   const sameMonth = start.getMonth() === end.getMonth();
@@ -106,7 +108,7 @@ const VIEW_START_KEY = "tracker.viewStart";
 function loadDayCount(): DayCount {
   if (typeof window === "undefined") return 7;
   const n = parseInt(localStorage.getItem(DAY_COUNT_KEY) ?? "7");
-  return n === 3 || n === 4 ? n : 7;
+  return n === 3 || n === 5 ? n : 7;
 }
 function initialViewStart(count: DayCount): Date {
   const today = new Date();
@@ -741,7 +743,7 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
                 onChange={(_, v) => v && setDayCount(v as DayCount)}
                 aria-label="Days shown"
               >
-                {([3, 4, 7] as const).map((n) => (
+                {([3, 5, 7] as const).map((n) => (
                   <ToggleButton key={n} value={n} aria-label={`Show ${n} days`} sx={{ px: 1.5 }}>
                     {n}d
                   </ToggleButton>
@@ -963,7 +965,11 @@ function DayColumn({
         borderColor: "divider",
         "&:last-of-type": { borderRight: 0 },
         bgcolor: (t) =>
-          isOver ? `rgba(${t.vars.palette.primary.mainChannel} / 0.1)` : "background.paper",
+          isOver
+            ? `rgba(${t.vars.palette.primary.mainChannel} / 0.1)`
+            : isToday
+              ? `rgba(${t.vars.palette.primary.mainChannel} / 0.04)`
+              : "background.paper",
         transition: "background-color .15s",
         // Row affordances stay hidden until the column is hovered or focused.
         "&:hover .col-affordance, &:focus-within .col-affordance": { opacity: 1 },
@@ -1337,6 +1343,139 @@ function HabitInput({
   );
 }
 
+const URL_REGEX = /https?:\/\/[^\s<>"']+/i;
+
+function extractUrl(text: string): string | null {
+  const match = text.match(URL_REGEX);
+  if (!match) return null;
+  // Strip trailing punctuation that's more likely to be sentence
+  // punctuation than part of the link (e.g. "check this out: url.").
+  return match[0].replace(/[.,;:!?)\]}'"]+$/, "");
+}
+
+function hostnameOf(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
+
+function LinkPreviewCard({ url }: { url: string }) {
+  const fetchPreview = useServerFn(fetchLinkPreview);
+  const { data } = useQuery({
+    queryKey: ["linkPreview", url],
+    queryFn: () => fetchPreview({ data: url }),
+    staleTime: 60 * 60 * 1000,
+    gcTime: 24 * 60 * 60 * 1000,
+    retry: false,
+  });
+  const hostname = data?.hostname ?? hostnameOf(url);
+  return (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, maxWidth: 260, py: 0.25 }}>
+      <Box
+        component="img"
+        src={`https://www.google.com/s2/favicons?sz=32&domain=${hostname}`}
+        alt=""
+        sx={{ width: 16, height: 16, borderRadius: 0.5, flexShrink: 0 }}
+      />
+      <Box sx={{ minWidth: 0 }}>
+        <Box
+          sx={{
+            fontSize: 12,
+            fontWeight: 600,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {data?.title || hostname}
+        </Box>
+        {data?.title && (
+          <Box
+            sx={{
+              fontSize: 11,
+              color: "text.secondary",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {hostname}
+          </Box>
+        )}
+      </Box>
+    </Box>
+  );
+}
+
+function TitleWithLink({ title, url }: { title: string; url: string }) {
+  const idx = title.indexOf(url);
+  if (idx === -1) return <>{title}</>;
+  const before = title.slice(0, idx);
+  const after = title.slice(idx + url.length);
+  return (
+    <>
+      {before && (
+        <Box
+          component="span"
+          sx={{
+            minWidth: 0,
+            flexShrink: 1,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {before}
+        </Box>
+      )}
+      <Tooltip
+        title={<LinkPreviewCard url={url} />}
+        placement="bottom"
+        arrow={false}
+        enterDelay={400}
+        disableInteractive
+      >
+        <Box
+          component="a"
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+          sx={{
+            flexShrink: 1,
+            minWidth: 0,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            color: "primary.main",
+            textDecoration: "underline",
+            cursor: "pointer",
+          }}
+        >
+          {url}
+        </Box>
+      </Tooltip>
+      {after && (
+        <Box
+          component="span"
+          sx={{
+            minWidth: 0,
+            flexShrink: 1,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {after}
+        </Box>
+      )}
+    </>
+  );
+}
+
 function TodoRow({
   todo,
   onToggle,
@@ -1355,6 +1494,7 @@ function TodoRow({
   const [draft, setDraft] = useState(todo.title);
   const [confirmOpen, setConfirmOpen] = useState(false);
   useEffect(() => setDraft(todo.title), [todo.title]);
+  const url = useMemo(() => extractUrl(todo.title), [todo.title]);
 
   return (
     <Box
@@ -1414,27 +1554,37 @@ function TodoRow({
         />
       ) : (
         <Box
-          component="button"
+          role="button"
+          tabIndex={0}
           onClick={() => setEditing(true)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setEditing(true);
+            }
+          }}
           sx={{
             flex: 1,
             minWidth: 0,
+            display: "flex",
+            alignItems: "center",
             textAlign: "left",
             font: "inherit",
             fontSize: 14,
             background: "none",
             border: 0,
             p: 0,
-            cursor: "text",
+            cursor: "default",
             overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
+            ...(url
+              ? {}
+              : { textOverflow: "ellipsis", whiteSpace: "nowrap" }),
             color: todo.completed ? "text.secondary" : "text.primary",
             textDecoration: todo.completed ? "line-through" : "none",
             fontStyle: todo.title ? "normal" : "italic",
           }}
         >
-          {todo.title || "Untitled"}
+          {todo.title ? url ? <TitleWithLink title={todo.title} url={url} /> : todo.title : "Untitled"}
         </Box>
       )}
       <IconButton
