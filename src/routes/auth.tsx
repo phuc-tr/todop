@@ -121,7 +121,9 @@ function AuthPage() {
     mode === "signin"
       ? "Sign in to continue."
       : mode === "signup"
-        ? "Start tracking your week."
+        ? isGuest
+          ? "Create an account to keep the week you've already planned and sync it across devices."
+          : "Start tracking your week."
         : "We'll email you a link to set a new password.";
 
   return (
@@ -229,6 +231,19 @@ function AuthPage() {
                   : "Back to sign in"}
             </Link>
           </Stack>
+
+          <Box sx={{ mt: 1, textAlign: "center" }}>
+            <Link
+              component="button"
+              type="button"
+              variant="body2"
+              underline="hover"
+              color="text.secondary"
+              onClick={() => navigate({ to: "/" })}
+            >
+              Continue without an account
+            </Link>
+          </Box>
         </Paper>
       </Box>
     </Box>
