@@ -172,7 +172,7 @@ function ThemeColorPicker({
   );
 }
 
-export function TrackerApp({ userId }: { userId: string }) {
+export function TrackerApp({ userId, isGuest = false }: { userId: string; isGuest?: boolean }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { mounted, mode, toggle, themeColor, setThemeColor } = useAppTheme();
