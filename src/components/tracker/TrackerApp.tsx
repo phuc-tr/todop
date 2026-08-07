@@ -776,11 +776,22 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
                   )}
                 </IconButton>
               </Tooltip>
-              <Tooltip title="Sign out">
-                <IconButton onClick={signOut} aria-label="Sign out">
-                  <LogoutIcon />
-                </IconButton>
-              </Tooltip>
+              {isGuest ? (
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => navigate({ to: "/auth" })}
+                  sx={{ ml: 0.5, whiteSpace: "nowrap" }}
+                >
+                  Save my data
+                </Button>
+              ) : (
+                <Tooltip title="Sign out">
+                  <IconButton onClick={signOut} aria-label="Sign out">
+                    <LogoutIcon />
+                  </IconButton>
+                </Tooltip>
+              )}
             </Stack>
           </Toolbar>
 
