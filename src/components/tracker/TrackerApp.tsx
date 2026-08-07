@@ -172,7 +172,7 @@ function ThemeColorPicker({
   );
 }
 
-export function TrackerApp({ userId }: { userId: string }) {
+export function TrackerApp({ userId, isGuest = false }: { userId: string; isGuest?: boolean }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { mounted, mode, toggle, themeColor, setThemeColor } = useAppTheme();
@@ -776,11 +776,22 @@ export function TrackerApp({ userId }: { userId: string }) {
                   )}
                 </IconButton>
               </Tooltip>
-              <Tooltip title="Sign out">
-                <IconButton onClick={signOut} aria-label="Sign out">
-                  <LogoutIcon />
-                </IconButton>
-              </Tooltip>
+              {isGuest ? (
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => navigate({ to: "/auth" })}
+                  sx={{ ml: 0.5, whiteSpace: "nowrap" }}
+                >
+                  Save my data
+                </Button>
+              ) : (
+                <Tooltip title="Sign out">
+                  <IconButton onClick={signOut} aria-label="Sign out">
+                    <LogoutIcon />
+                  </IconButton>
+                </Tooltip>
+              )}
             </Stack>
           </Toolbar>
 

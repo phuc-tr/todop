@@ -1,5 +1,5 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import { supabase } from "@/integrations/supabase/client";
 import { TrackerApp } from "@/components/tracker/TrackerApp";
@@ -23,25 +23,44 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  const navigate = useNavigate();
-  const [userId, setUserId] = useState<string | null | undefined>(undefined);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [isGuest, setIsGuest] = useState(false);
+  const signingIn = useRef(false);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setUserId(data.user?.id ?? null);
-    });
+    // No sign-in required: visitors get an invisible guest session so the
+    // tracker is fully usable, and can upgrade it to a real account later.
+    async function ensureSession() {
+      const { data } = await supabase.auth.getUser();
+      if (data.user) {
+        setUserId(data.user.id);
+        setIsGuest(data.user.is_anonymous === true);
+        return;
+      }
+      if (signingIn.current) return;
+      signingIn.current = true;
+      const { data: anon } = await supabase.auth.signInAnonymously();
+      signingIn.current = false;
+      if (anon.user) {
+        setUserId(anon.user.id);
+        setIsGuest(true);
+      }
+    }
+    void ensureSession();
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUserId(session?.user?.id ?? null);
+      if (session?.user) {
+        setUserId(session.user.id);
+        setIsGuest(session.user.is_anonymous === true);
+      } else {
+        setUserId(null);
+        void ensureSession();
+      }
     });
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  useEffect(() => {
-    if (userId === null) navigate({ to: "/auth", replace: true });
-  }, [userId, navigate]);
-
   if (!userId) {
     return <Box sx={{ minHeight: "100dvh", bgcolor: "background.default" }} />;
   }
-  return <TrackerApp userId={userId} />;
+  return <TrackerApp userId={userId} isGuest={isGuest} />;
 }
