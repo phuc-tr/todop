@@ -53,13 +53,17 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isGuest, setIsGuest] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      if (data.user) navigate({ to: "/" });
+      if (data.user && !data.user.is_anonymous) navigate({ to: "/" });
+      setIsGuest(data.user?.is_anonymous === true);
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_IN") navigate({ to: "/" });
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session?.user && !session.user.is_anonymous) {
+        navigate({ to: "/" });
+      }
     });
     return () => sub.subscription.unsubscribe();
   }, [navigate]);
@@ -75,13 +79,20 @@ function AuthPage() {
         if (error) throw error;
         toast.success("Password reset link sent. Check your email.");
       } else if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { emailRedirectTo: window.location.origin },
-        });
-        if (error) throw error;
-        toast.success("Account created. Check your email if confirmation is required.");
+        if (isGuest) {
+          // Upgrade the guest session in place so existing data is kept.
+          const { error } = await supabase.auth.updateUser({ email, password });
+          if (error) throw error;
+          toast.success("Almost there — confirm the link in your email to finish saving your data.");
+        } else {
+          const { error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: { emailRedirectTo: window.location.origin },
+          });
+          if (error) throw error;
+          toast.success("Account created. Check your email if confirmation is required.");
+        }
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
