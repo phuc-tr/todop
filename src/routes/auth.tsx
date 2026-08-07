@@ -58,7 +58,10 @@ function AuthPage() {
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (data.user && !data.user.is_anonymous) navigate({ to: "/" });
-      setIsGuest(data.user?.is_anonymous === true);
+      if (data.user?.is_anonymous) {
+        setIsGuest(true);
+        setMode("signup");
+      }
     });
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" && session?.user && !session.user.is_anonymous) {
