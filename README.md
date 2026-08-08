@@ -1,82 +1,124 @@
-# datewise
+# Datewise
 
-Weekly Productivity Tracker
+**A weekly productivity tracker that combines a calendar, a todo list, and habit streaks into one screen.**
 
-Build a minimalistic weekly productivity tracker web app with a Google Calendar–inspired design. Use Supabase for authentication and data storage.
+Plan the week in a Google-Calendar-style grid, tick things off, and watch weekly goals fill up in real time — no sign-up required, no save button, nothing to configure before you start.
 
-## Core Layout
+🔗 **[Live app →](https://todop.lovable.app)**
 
-The main view is a weekly grid: 7 day columns laid out horizontally (Monday–Sunday), similar to Google Calendar's week view. The current day's column is subtly highlighted. A header above the grid shows the week's date range with previous/next arrows and a "Today" button to navigate between weeks. All data is stored per-week, so navigating to past or future weeks shows that week's todos and habit entries.
+![Datewise weekly tracker](docs/screenshot.png)
 
-Each day column is split vertically into two stacked sections:
+---
 
-1. **Todo section (top):** A todo list for that day. Each todo has a checkbox and a title. I can add a todo inline (click an empty row or a "+" that appears on hover), edit a todo's text by clicking it, check it off as done (with strikethrough styling), and delete it (small "x" on hover). Completed todos stay visible.
+## Why it exists
 
-2. **Habit tracking section (bottom):** A row for each habit I've defined (e.g., "Pages read", "LeetCode problems"). Each cell contains a number input where I type the value for that day (default empty/0). Values save automatically on blur or Enter.
+Most trackers make you choose: a calendar that can't count, or a habit app that can't plan. Datewise puts both in the same grid — each day column holds that day's tasks on top and that day's habit counters underneath, with the week's aggregate goals always visible in the corner. One glance answers "what's left today?" and "am I on track this week?".
 
-## Habits
+## Highlights
 
-- A settings panel (gear icon) where I manage habits: add a habit with a name and a weekly goal number, edit, and delete habits.
-- Habits appear as rows in the bottom section of every day column.
-- Daily entries are just numbers typed manually.
+| | |
+|---|---|
+| **Zero-friction entry** | First visit silently provisions an anonymous Supabase session, so the app is fully usable in one second. Sign up later and the guest data is carried into the real account. |
+| **Optimistic everything** | Every mutation writes to the TanStack Query cache first and rolls back on failure. Checking a box, typing a habit value, dragging a task — the UI never waits on the network. |
+| **Cross-day drag & drop** | `@dnd-kit` sortable contexts per day, so tasks reorder within a day *and* move between days with live drop indicators, on mouse and touch. |
+| **Server-side link previews** | Paste a URL into a task and a TanStack Start server function fetches its `og:title` — with an SSRF guard on private address ranges and a 5s abort timeout — so the row shows a readable title instead of a raw URL. |
+| **Flash-free theming** | 7 accent colours × light/dark are Material UI colour schemes applied to `<html>` before hydration. No theme flash, no layout shift, preference persisted. |
+| **Adjustable span** | Switch between a 3-day, 5-day, or 7-day view; the choice persists, and the current day's column is tinted. |
+| **Weekly rituals** | Per-week focus banner and rotating quote collection, per-day illustrated header art (32 hand-cropped WebP tiles, light + dark variants), confetti and a synthesized WebAudio chime when a goal is hit. |
+| **Secure by construction** | Every table is row-level-secured against `auth.uid()`; the client is never trusted to scope a query. |
 
-## Statistics Panel (top right)
+## Architecture
 
-A compact stats area in the top-right of the screen showing, for the currently viewed week:
+```
+Browser (React 19)                    Server (TanStack Start → Nitro → Cloudflare)
+┌──────────────────────────┐          ┌────────────────────────────────────┐
+│ TrackerApp               │          │ SSR entry (src/server.ts)          │
+│  ├─ StatsPanel           │          │  └─ error-boundary wrapper         │
+│  ├─ QuotePanel           │  ◄────►  │ Server functions                   │
+│  ├─ SettingsDialog       │          │  └─ fetchLinkPreview (SSRF-guarded)│
+│  └─ dnd-kit day columns  │          │ requireSupabaseAuth middleware     │
+│ TanStack Query cache     │          └────────────────────────────────────┘
+│  └─ optimistic mutations │                          │
+└──────────────────────────┘                          ▼
+             │                          ┌────────────────────────────────┐
+             └────────────────────────► │ Supabase — Postgres + Auth     │
+                    supabase-js         │ RLS: auth.uid() = user_id      │
+                                        └────────────────────────────────┘
+```
 
-- **Tasks:** number of completed todos vs. weekly task goal (e.g., "12 / 20 tasks"), with a progress bar.
-- **Each habit:** the sum of that habit's daily numbers for the week vs. its weekly goal (e.g., "Pages: 85 / 100"), each with its own progress bar.
-- Progress bars fill proportionally and turn a success color (green) when the goal is reached.
-- The weekly task goal is editable by clicking the number in the stats panel or via the settings panel.
+**Data model** — `todos`, `habits`, `habit_entries`, `settings`, `day_notes`, `weekly_backgrounds`, `weekly_quotes`, `quote_collections`. Composite `(user_id, date)` indexes keep the week query to a single indexed range scan per table; `habit_entries` is uniquely keyed on `(habit_id, date)` so a day's value is a plain upsert rather than a read-modify-write.
 
-## Drag and Drop
+**Query strategy** — the visible week is the cache key. Navigating weeks swaps keys, so previously-visited weeks render instantly from cache while revalidating in the background.
 
-Full drag-and-drop support for todos:
+## Tech stack
 
-- Drag a todo from one day to another day within the week.
-- Reorder todos within the same day by dragging.
-- Show a clear visual drop indicator (placeholder line / highlighted column) while dragging.
-- Use a well-supported library like @dnd-kit for smooth behavior on both desktop and touch devices.
+- **React 19** + **TypeScript** (strict)
+- **TanStack Start** — full-stack React with SSR, file-based routing and typed server functions
+- **TanStack Query** — server-state cache, optimistic updates, rollback
+- **Material UI v9** — theming and components, styled entirely through the theme + `sx`
+- **Supabase** — Postgres, Auth (incl. anonymous sessions), Row Level Security
+- **@dnd-kit** — accessible drag & drop
+- **Motion** + **canvas-confetti** + **WebAudio** — micro-interactions
+- **Vite 8**, ESLint, Prettier; deployed to **Cloudflare** via Nitro
 
-## Auth & Data (Supabase)
+## Engineering notes
 
-- Email/password sign up and login (magic link optional). All data is scoped to the logged-in user.
-- Tables (suggested): `todos` (id, user_id, title, date, completed, sort_order), `habits` (id, user_id, name, weekly_goal), `habit_entries` (id, user_id, habit_id, date, value), `settings` (user_id, weekly_task_goal).
-- Changes save automatically — no explicit save button. Optimistic UI updates with graceful error handling.
+A few decisions worth calling out:
 
-## Design & Theme
+- **Anonymous-first auth.** Rather than gating the app behind a login wall, `signInAnonymously()` runs on first paint and `onAuthStateChange` promotes the session in place when the user later registers. The tradeoff — anonymous rows accumulate — is bounded by `ON DELETE CASCADE` from `auth.users`.
+- **The server function is the trust boundary.** Link previews can't run in the browser (CORS) and can't be trusted to run unvalidated on the server (SSRF), so `fetchLinkPreview` validates protocol, rejects loopback/link-local/RFC-1918 hostnames, caps the fetch with an `AbortController`, and returns only a title string — never the fetched body.
+- **Theme without the flash.** The naive `useEffect` theme toggle paints the wrong colours for one frame. Using MUI colour schemes with a pre-hydration class means the very first painted frame is already correct, including the accent.
+- **Optimistic mutations with real rollback.** Each `useMutation` snapshots the affected cache slice in `onMutate` and restores it in `onError`, so a dropped connection degrades to "the change reverts" rather than "the UI lies".
 
-- Built on [Material UI](https://mui.com) following Material Design: components come from `@mui/material`, icons from `@mui/icons-material`, and all styling goes through the `sx` prop or the theme in `src/lib/muiTheme.ts` — no utility-class framework.
-- Light and dark mode are Material UI colour schemes, one per accent colour (`light-rose`, `dark-mono`, …), applied as a class on `<html>` before hydration so neither the mode nor the accent flashes on load.
-- Minimalistic, clean, lots of whitespace — visually similar to Google Calendar: thin light borders between day columns, simple sans-serif typography, restrained color use (one accent color, e.g., Google-blue).
-- Light and dark theme with a toggle in the header; remember the user's preference.
-- Responsive / mobile-friendly: on narrow screens, collapse the 7-column grid into a vertically scrollable list of days (or a swipeable single-day view), keep the stats panel accessible at the top, and make sure drag-and-drop still works with touch.
+## Running locally
 
-## Nice Details
-
-- Empty states with subtle hints (e.g., "Add a task…").
-- Keyboard support: Enter to add/confirm a todo, Escape to cancel editing.
-- Subtle transitions for checking off todos and theme switching — nothing flashy.
-
-This project was built with [Lovable](https://lovable.dev).
-
-**Live app**: https://todop.lovable.app
-
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/1a1cb279-d336-45fa-a8df-d100610a5440).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
-
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+Requires [Bun](https://bun.sh) (or npm) and a Supabase project.
 
 ```sh
 git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
+cd todop
+bun install
+
+# Configure Supabase
+cp .env.example .env      # then fill in the values below
+```
+
+```env
+# Client (Vite build-time replacement)
+VITE_SUPABASE_URL=https://<project-ref>.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=<publishable-key>
+
+# Same values for SSR / server functions
+SUPABASE_URL=https://<project-ref>.supabase.co
+SUPABASE_PUBLISHABLE_KEY=<publishable-key>
+```
+
+Apply the schema, then start the dev server:
+
+```sh
+supabase db push          # runs supabase/migrations/*.sql
+bun run dev               # http://localhost:5173
+```
+
+| Script | Description |
+|---|---|
+| `bun run dev` | Dev server with HMR |
+| `bun run build` | Production build (Nitro → Cloudflare) |
+| `bun run preview` | Preview the production build |
+| `bun run lint` | ESLint |
+| `bun run format` | Prettier |
+
+## Project structure
+
+```
+src/
+├─ routes/                  # File-based routes: /, /auth, /reset-password
+├─ components/tracker/
+│  ├─ TrackerApp.tsx        # Week grid, drag & drop, mutations
+│  ├─ StatsPanel.tsx        # Weekly goal progress
+│  ├─ QuotePanel.tsx        # Per-week focus banner & quotes
+│  └─ SettingsDialog.tsx    # Habits, goals, theme, sound
+├─ integrations/supabase/   # Client, SSR client, auth middleware, generated types
+└─ lib/                     # Theme, week math, link previews, celebration, sound
+supabase/migrations/        # Schema + RLS policies
 ```
