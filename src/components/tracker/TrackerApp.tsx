@@ -903,8 +903,131 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
   );
 }
 
+function BacklogColumn({
+  todos,
+  onAdd,
+  onToggle,
+  onEdit,
+  onDelete,
+}: {
+  todos: Todo[];
+  onAdd: (title: string) => void;
+  onToggle: (t: Todo) => void;
+  onEdit: (t: Todo, title: string) => void;
+  onDelete: (t: Todo) => void;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: "day-unscheduled" });
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState("");
+
+  function confirmAdd() {
+    if (draft.trim()) onAdd(draft);
+    setDraft("");
+    setAdding(false);
+  }
+
+  return (
+    <Box
+      ref={setNodeRef}
+      data-date="unscheduled"
+      sx={{
+        width: { xs: "72vw", md: 200 },
+        maxWidth: { xs: 300, md: "none" },
+        flexShrink: 0,
+        scrollSnapAlign: "start",
+        display: "flex",
+        flexDirection: "column",
+        borderRight: 2,
+        borderColor: "divider",
+        bgcolor: (t) =>
+          isOver ? `rgba(${t.vars.palette.primary.mainChannel} / 0.1)` : "action.hover",
+        transition: "background-color .15s",
+        "&:hover .col-affordance, &:focus-within .col-affordance": { opacity: 1 },
+      }}
+    >
+      <Box
+        sx={{
+          position: "sticky",
+          top: 0,
+          zIndex: 1,
+          px: 1.5,
+          py: 1,
+          borderBottom: 1,
+          borderColor: "divider",
+          bgcolor: "action.hover",
+        }}
+      >
+        <Typography variant="overline" color="text.secondary" sx={{ display: "block", lineHeight: "20px" }}>
+          No date
+        </Typography>
+        <Typography variant="h6" component="div" sx={{ fontWeight: 500, fontSize: 16 }}>
+          Unscheduled
+        </Typography>
+      </Box>
+
+      <SortableContext
+        items={todos.map((t) => t.id)}
+        strategy={verticalListSortingStrategy}
+        id="day-unscheduled"
+      >
+        <Box sx={{ px: 0.5, py: 1, flex: 1, minHeight: 140 }}>
+          {todos.map((t) => (
+            <TodoRow key={t.id} todo={t} onToggle={onToggle} onEdit={onEdit} onDelete={onDelete} />
+          ))}
+          {adding ? (
+            <Box sx={{ px: 0.5, py: 0.5 }}>
+              <InputBase
+                autoFocus
+                fullWidth
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onBlur={confirmAdd}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") confirmAdd();
+                  if (e.key === "Escape") {
+                    setDraft("");
+                    setAdding(false);
+                  }
+                }}
+                placeholder="Someday task…"
+                sx={{
+                  fontSize: 14,
+                  px: 1,
+                  py: 0.25,
+                  borderRadius: 1.5,
+                  border: 1,
+                  borderColor: "primary.main",
+                }}
+              />
+            </Box>
+          ) : (
+            <Button
+              className={todos.length === 0 ? undefined : "col-affordance"}
+              onClick={() => setAdding(true)}
+              startIcon={<AddIcon sx={{ fontSize: 14 }} />}
+              size="small"
+              color="inherit"
+              fullWidth
+              sx={{
+                justifyContent: "flex-start",
+                color: "text.secondary",
+                fontSize: 12,
+                fontWeight: 400,
+                borderRadius: 1.5,
+                opacity: todos.length === 0 ? 0.75 : 0,
+                transition: "opacity .15s",
+              }}
+            >
+              Add a task…
+            </Button>
+          )}
+        </Box>
+      </SortableContext>
+    </Box>
+  );
+}
+
 function DayColumn({
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   day,
   label,
   isToday,
