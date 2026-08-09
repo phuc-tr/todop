@@ -904,6 +904,7 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
 }
 
 function DayColumn({
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   day,
   label,
   isToday,
