@@ -79,7 +79,8 @@ type Todo = {
   id: string;
   user_id: string;
   title: string;
-  date: string;
+  /** null = unscheduled (lives in the backlog column) */
+  date: string | null;
   completed: boolean;
   sort_order: number;
 };
