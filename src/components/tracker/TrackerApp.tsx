@@ -105,6 +105,7 @@ const GROW_SPRING = { stiffness: 700, damping: 44, mass: 0.4 } as const;
 
 const DAY_COUNT_KEY = "tracker.dayCount";
 const VIEW_START_KEY = "tracker.viewStart";
+const BACKLOG_OPEN_KEY = "tracker.backlogOpen";
 
 function loadDayCount(): DayCount {
   if (typeof window === "undefined") return 7;
@@ -191,6 +192,10 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
     }
     return initialViewStart(count);
   });
+  const [backlogOpen, setBacklogOpen] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return localStorage.getItem(BACKLOG_OPEN_KEY) !== "false";
+  });
 
   function setDayCount(count: DayCount) {
     setDayCountState(count);
@@ -207,6 +212,11 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
   useEffect(() => {
     if (typeof window !== "undefined") localStorage.setItem(VIEW_START_KEY, toDateKey(viewStart));
   }, [viewStart]);
+
+  function toggleBacklog(next = !backlogOpen) {
+    setBacklogOpen(next);
+    if (typeof window !== "undefined") localStorage.setItem(BACKLOG_OPEN_KEY, String(next));
+  }
 
   const days = useMemo(() => {
     if (dayCount === 7) return getWeekDays(viewStart);
@@ -835,6 +845,8 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
               todos={todos
                 .filter((t) => !t.date)
                 .sort((a, b) => a.sort_order - b.sort_order)}
+              open={backlogOpen}
+              onToggleOpen={() => toggleBacklog()}
               onAdd={(title) => handleAddTodo(title, null)}
               onToggle={handleToggle}
               onEdit={handleEditTitle}
@@ -905,12 +917,16 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
 
 function BacklogColumn({
   todos,
+  open,
+  onToggleOpen,
   onAdd,
   onToggle,
   onEdit,
   onDelete,
 }: {
   todos: Todo[];
+  open: boolean;
+  onToggleOpen: () => void;
   onAdd: (title: string) => void;
   onToggle: (t: Todo) => void;
   onEdit: (t: Todo, title: string) => void;
@@ -919,6 +935,13 @@ function BacklogColumn({
   const { setNodeRef, isOver } = useDroppable({ id: "day-unscheduled" });
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState("");
+
+  // Auto-expand the backlog while something is being dragged over it so the
+  // user can choose an exact drop position; collapse again when drag leaves.
+  useEffect(() => {
+    if (isOver && !open) onToggleOpen();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOver]);
 
   function confirmAdd() {
     if (draft.trim()) onAdd(draft);
@@ -931,8 +954,8 @@ function BacklogColumn({
       ref={setNodeRef}
       data-date="unscheduled"
       sx={{
-        width: { xs: "72vw", md: 200 },
-        maxWidth: { xs: 300, md: "none" },
+        width: { xs: open ? "72vw" : 56, md: open ? 220 : 52 },
+        maxWidth: { xs: open ? 300 : 56, md: "none" },
         flexShrink: 0,
         scrollSnapAlign: "start",
         display: "flex",
@@ -941,7 +964,8 @@ function BacklogColumn({
         borderColor: "divider",
         bgcolor: (t) =>
           isOver ? `rgba(${t.vars.palette.primary.mainChannel} / 0.1)` : "action.hover",
-        transition: "background-color .15s",
+        transition: "width .2s ease, background-color .15s",
+        overflow: "hidden",
         "&:hover .col-affordance, &:focus-within .col-affordance": { opacity: 1 },
       }}
     >
@@ -950,19 +974,56 @@ function BacklogColumn({
           position: "sticky",
           top: 0,
           zIndex: 1,
-          px: 1.5,
+          px: open ? 1.5 : 0.75,
           py: 1,
           borderBottom: 1,
           borderColor: "divider",
           bgcolor: "action.hover",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 0.5,
         }}
       >
-        <Typography variant="overline" color="text.secondary" sx={{ display: "block", lineHeight: "20px" }}>
-          No date
-        </Typography>
-        <Typography variant="h6" component="div" sx={{ fontWeight: 500, fontSize: 16 }}>
-          Unscheduled
-        </Typography>
+        {open ? (
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="overline" color="text.secondary" sx={{ display: "block", lineHeight: "20px" }}>
+              No date
+            </Typography>
+            <Typography variant="h6" component="div" sx={{ fontWeight: 500, fontSize: 16 }}>
+              Unscheduled
+            </Typography>
+          </Box>
+        ) : (
+          <Tooltip title="Unscheduled tasks" placement="right">
+            <Box
+              sx={{
+                writingMode: "vertical-rl",
+                transform: "rotate(180deg)",
+                typography: "caption",
+                fontWeight: 500,
+                color: "text.secondary",
+                whiteSpace: "nowrap",
+                letterSpacing: 0.5,
+                flex: 1,
+                textAlign: "center",
+                userSelect: "none",
+              }}
+            >
+              Unscheduled
+            </Box>
+          </Tooltip>
+        )}
+        <Tooltip title={open ? "Collapse unscheduled" : "Expand unscheduled"} placement="right">
+          <IconButton
+            size="small"
+            onClick={onToggleOpen}
+            aria-label={open ? "Collapse unscheduled column" : "Expand unscheduled column"}
+            sx={{ color: "text.secondary" }}
+          >
+            {open ? <ChevronLeftIcon fontSize="small" /> : <ChevronRightIcon fontSize="small" />}
+          </IconButton>
+        </Tooltip>
       </Box>
 
       <SortableContext
@@ -970,57 +1031,91 @@ function BacklogColumn({
         strategy={verticalListSortingStrategy}
         id="day-unscheduled"
       >
-        <Box sx={{ px: 0.5, py: 1, flex: 1, minHeight: 140 }}>
-          {todos.map((t) => (
-            <TodoRow key={t.id} todo={t} onToggle={onToggle} onEdit={onEdit} onDelete={onDelete} />
-          ))}
-          {adding ? (
-            <Box sx={{ px: 0.5, py: 0.5 }}>
-              <InputBase
-                autoFocus
-                fullWidth
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                onBlur={confirmAdd}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") confirmAdd();
-                  if (e.key === "Escape") {
-                    setDraft("");
-                    setAdding(false);
-                  }
-                }}
-                placeholder="Someday task…"
+        <Box
+          sx={{
+            px: open ? 0.5 : 0.25,
+            py: 1,
+            flex: 1,
+            minHeight: 140,
+            display: "flex",
+            flexDirection: "column",
+            gap: open ? 0 : 0.5,
+            alignItems: open ? "stretch" : "center",
+          }}
+        >
+          {!open && todos.length > 0 && (
+            <Tooltip title={`${todos.length} unscheduled task${todos.length === 1 ? "" : "s"}`} placement="right">
+              <Box
                 sx={{
-                  fontSize: 14,
-                  px: 1,
-                  py: 0.25,
-                  borderRadius: 1.5,
-                  border: 1,
-                  borderColor: "primary.main",
+                  width: 32,
+                  height: 32,
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  bgcolor: "primary.main",
+                  color: "primary.contrastText",
+                  typography: "caption",
+                  fontWeight: 600,
                 }}
-              />
-            </Box>
-          ) : (
-            <Button
-              className={todos.length === 0 ? undefined : "col-affordance"}
-              onClick={() => setAdding(true)}
-              startIcon={<AddIcon sx={{ fontSize: 14 }} />}
-              size="small"
-              color="inherit"
-              fullWidth
-              sx={{
-                justifyContent: "flex-start",
-                color: "text.secondary",
-                fontSize: 12,
-                fontWeight: 400,
-                borderRadius: 1.5,
-                opacity: todos.length === 0 ? 0.75 : 0,
-                transition: "opacity .15s",
-              }}
-            >
-              Add a task…
-            </Button>
+              >
+                {todos.length}
+              </Box>
+            </Tooltip>
           )}
+          <Box sx={{ display: open ? "block" : "none" }}>
+            {todos.map((t) => (
+              <TodoRow key={t.id} todo={t} onToggle={onToggle} onEdit={onEdit} onDelete={onDelete} />
+            ))}
+          </Box>
+          {open &&
+            (adding ? (
+              <Box sx={{ px: 0.5, py: 0.5 }}>
+                <InputBase
+                  autoFocus
+                  fullWidth
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onBlur={confirmAdd}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") confirmAdd();
+                    if (e.key === "Escape") {
+                      setDraft("");
+                      setAdding(false);
+                    }
+                  }}
+                  placeholder="Someday task…"
+                  sx={{
+                    fontSize: 14,
+                    px: 1,
+                    py: 0.25,
+                    borderRadius: 1.5,
+                    border: 1,
+                    borderColor: "primary.main",
+                  }}
+                />
+              </Box>
+            ) : (
+              <Button
+                className={todos.length === 0 ? undefined : "col-affordance"}
+                onClick={() => setAdding(true)}
+                startIcon={<AddIcon sx={{ fontSize: 14 }} />}
+                size="small"
+                color="inherit"
+                fullWidth
+                sx={{
+                  justifyContent: "flex-start",
+                  color: "text.secondary",
+                  fontSize: 12,
+                  fontWeight: 400,
+                  borderRadius: 1.5,
+                  opacity: todos.length === 0 ? 0.75 : 0,
+                  transition: "opacity .15s",
+                }}
+              >
+                Add a task…
+              </Button>
+            ))}
         </Box>
       </SortableContext>
     </Box>
