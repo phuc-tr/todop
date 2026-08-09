@@ -106,6 +106,10 @@ const GROW_SPRING = { stiffness: 700, damping: 44, mass: 0.4 } as const;
 const DAY_COUNT_KEY = "tracker.dayCount";
 const VIEW_START_KEY = "tracker.viewStart";
 const BACKLOG_OPEN_KEY = "tracker.backlogOpen";
+/** Height of the collapsed backlog tab; fixed so the collapse can animate. */
+const COLLAPSED_TAB_HEIGHT = 64;
+/** How far the collapsed tab bulges under the first day column. */
+const COLLAPSED_TAB_OVERLAP = 6;
 
 function loadDayCount(): DayCount {
   if (typeof window === "undefined") return 7;
@@ -241,8 +245,15 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
   const scrollToToday = useCallback((behavior: ScrollBehavior = "smooth") => {
     const key = toDateKey(new Date());
     requestAnimationFrame(() => {
-      const el = gridRef.current?.querySelector<HTMLElement>(`[data-date="${key}"]`);
-      el?.scrollIntoView({ behavior, inline: "start", block: "nearest" });
+      const grid = gridRef.current;
+      const el = grid?.querySelector<HTMLElement>(`[data-date="${key}"]`);
+      if (!grid || !el) return;
+      // Scroll the grid horizontally by hand rather than with scrollIntoView:
+      // the columns are taller than the viewport, so any block alignment (even
+      // "nearest") drags the page down as a side effect.
+      const left =
+        grid.scrollLeft + (el.getBoundingClientRect().left - grid.getBoundingClientRect().left) - 8;
+      grid.scrollTo({ left: Math.max(0, left), behavior });
     });
   }, []);
 
@@ -922,9 +933,11 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
               flex: 1,
               minWidth: 0,
               maxWidth: 1600,
-              // Collapsed the tab is out of flow and deliberately overlaps the
-              // first column by a few pixels; expanded it sits clear of it.
-              ml: backlogOpen ? { xs: 1, sm: 1.5 } : "26px",
+              // Collapsed, the tab is only 32px wide and the grid pulls back
+              // over it so the half-circle overlaps the first column by a few
+              // pixels; expanded, the grid sits clear of it.
+              ml: backlogOpen ? { xs: 1, sm: 1.5 } : `-${COLLAPSED_TAB_OVERLAP}px`,
+              transition: "margin-left .2s ease",
               mr: "auto",
               display: "flex",
               overflowX: { xs: "auto", md: "hidden" },
@@ -1041,22 +1054,23 @@ function BacklogColumn({
         maxWidth: { xs: open ? 300 : 32, md: "none" },
         flexShrink: 0,
         // Both states are keyed to the day columns: expanded it matches the
-        // header + task band exactly; collapsed the tab is centred on that band
-        // and leaves the flow so it can overlap the first column.
-        ...(open
-          ? {
-              position: "relative",
-              alignSelf: "flex-start",
-              mt: listBand ? `${listBand.top - 16}px` : 0,
-              height: listBand ? `${listBand.height}px` : "auto",
-            }
-          : {
-              position: "absolute",
-              left: 0,
-              top: listBand ? listBand.top + listBand.height / 2 : "50%",
-              transform: "translateY(-50%)",
-              visibility: listBand ? "visible" : "hidden",
-            }),
+        // header + task band exactly; collapsed the tab is centred on that band.
+        // It stays in flow either way — switching to absolute would drop it out
+        // of the layout in one frame and kill the collapse animation — and the
+        // grid's negative margin is what lets the tab overlap the first column.
+        position: "relative",
+        alignSelf: "flex-start",
+        // Offsets are measured from <main>, whose py: 2 the flex item already
+        // clears, hence the -16.
+        mt: listBand
+          ? `${open ? listBand.top - 16 : listBand.top + listBand.height / 2 - COLLAPSED_TAB_HEIGHT / 2 - 16}px`
+          : 0,
+        height: open
+          ? listBand
+            ? `${listBand.height}px`
+            : "auto"
+          : `${COLLAPSED_TAB_HEIGHT}px`,
+        visibility: listBand || open ? "visible" : "hidden",
         zIndex: 2,
         display: "flex",
         flexDirection: "column",
@@ -1074,7 +1088,8 @@ function BacklogColumn({
           isOver
             ? `linear-gradient(rgba(${t.vars.palette.primary.mainChannel} / 0.12), rgba(${t.vars.palette.primary.mainChannel} / 0.12))`
             : "none",
-        transition: "width .2s ease, background-color .15s",
+        transition:
+          "width .2s ease, height .2s ease, margin-top .2s ease, border-radius .2s ease, background-color .15s",
         overflow: "hidden",
         "&:hover .col-affordance, &:focus-within .col-affordance": { opacity: 1 },
       }}
@@ -1146,7 +1161,7 @@ function BacklogColumn({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              minHeight: 64,
+              minHeight: COLLAPSED_TAB_HEIGHT,
               cursor: "pointer",
               userSelect: "none",
               "&:hover": { bgcolor: "action.selected" },
@@ -1413,7 +1428,7 @@ function DayColumn({
         strategy={verticalListSortingStrategy}
         id={`day-${dateKey}`}
       >
-        <Box data-todo-list sx={{ px: 0.5, py: 1, minHeight: 140 }}>
+        <Box data-todo-list sx={{ px: 0.5, py: 1, minHeight: 260 }}>
           {todos.map((t) => (
             <TodoRow key={t.id} todo={t} onToggle={onToggle} onEdit={onEdit} onDelete={onDelete} />
           ))}
