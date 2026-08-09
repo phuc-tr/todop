@@ -105,6 +105,7 @@ const GROW_SPRING = { stiffness: 700, damping: 44, mass: 0.4 } as const;
 
 const DAY_COUNT_KEY = "tracker.dayCount";
 const VIEW_START_KEY = "tracker.viewStart";
+const BACKLOG_OPEN_KEY = "tracker.backlogOpen";
 
 function loadDayCount(): DayCount {
   if (typeof window === "undefined") return 7;
