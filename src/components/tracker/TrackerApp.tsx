@@ -254,8 +254,7 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
       const { data, error } = await supabase
         .from("todos")
         .select("*")
-        .gte("date", startKey)
-        .lte("date", endKey)
+        .or(`and(date.gte.${startKey},date.lte.${endKey}),date.is.null`)
         .order("sort_order", { ascending: true });
       if (error) throw error;
       return (data ?? []) as Todo[];
@@ -332,7 +331,7 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
   }
 
   const addTodo = useMutation({
-    mutationFn: async ({ title, date }: { title: string; date: string }) => {
+    mutationFn: async ({ title, date }: { title: string; date: string | null }) => {
       const dayTodos = (qc.getQueryData<Todo[]>(todosKey) ?? []).filter((t) => t.date === date);
       const sort_order = dayTodos.length;
       const { data, error } = await supabase
@@ -357,7 +356,7 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
     },
   });
 
-  function handleAddTodo(title: string, date: string) {
+  function handleAddTodo(title: string, date: string | null) {
     if (!title.trim()) return;
     const tempId = `tmp-${crypto.randomUUID()}`;
     const dayTodos = todos.filter((t) => t.date === date);
@@ -458,10 +457,11 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
     if (!activeTodo) return;
 
     const overId = String(over.id);
-    let targetDate: string;
+    let targetDate: string | null;
     let overTodo: Todo | undefined;
     if (overId.startsWith("day-")) {
-      targetDate = overId.slice(4);
+      const key = overId.slice(4);
+      targetDate = key === "unscheduled" ? null : key;
     } else {
       overTodo = todos.find((t) => t.id === overId);
       if (!overTodo) return;
