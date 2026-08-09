@@ -395,7 +395,7 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
 
   function handleToggle(t: Todo) {
     const nextCompleted = !t.completed;
-    const prevDone = todos.filter((x) => x.completed).length;
+    const prevDone = todos.filter((x) => x.completed && x.date).length;
     const nextDone = prevDone + (nextCompleted ? 1 : -1);
     setTodos((prev) => prev.map((x) => (x.id === t.id ? { ...x, completed: nextCompleted } : x)));
     if (!t.id.startsWith("tmp-"))
@@ -642,7 +642,7 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
     },
   });
 
-  const tasksDone = todos.filter((t) => t.completed).length;
+  const tasksDone = todos.filter((t) => t.completed && t.date).length;
   const habitStats = habits.map((h) => {
     const sum = entries.filter((e) => e.habit_id === h.id).reduce((s, e) => s + Number(e.value), 0);
     return { id: h.id, name: h.name, sum, goal: h.weekly_goal, unit: h.unit, icon: h.icon };
