@@ -192,6 +192,10 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
     }
     return initialViewStart(count);
   });
+  const [backlogOpen, setBacklogOpen] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return localStorage.getItem(BACKLOG_OPEN_KEY) !== "false";
+  });
 
   function setDayCount(count: DayCount) {
     setDayCountState(count);
