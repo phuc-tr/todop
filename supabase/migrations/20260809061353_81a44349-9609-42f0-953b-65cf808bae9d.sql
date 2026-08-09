@@ -1,0 +1,1 @@
+ALTER TABLE public.todos ALTER COLUMN date DROP NOT NULL;
