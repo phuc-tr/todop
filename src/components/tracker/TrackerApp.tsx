@@ -831,6 +831,15 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
               scrollPaddingLeft: 8,
             }}
           >
+            <BacklogColumn
+              todos={todos
+                .filter((t) => !t.date)
+                .sort((a, b) => a.sort_order - b.sort_order)}
+              onAdd={(title) => handleAddTodo(title, null)}
+              onToggle={handleToggle}
+              onEdit={handleEditTitle}
+              onDelete={handleDelete}
+            />
             {days.map((day) => {
               const dateKey = toDateKey(day);
               const isToday = isSameDay(day, today);
