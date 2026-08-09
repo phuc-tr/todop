@@ -1922,7 +1922,7 @@ function TodoRow({
   });
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(todo.title);
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   useEffect(() => setDraft(todo.title), [todo.title]);
   const url = useMemo(() => extractUrl(todo.title), [todo.title]);
 
@@ -1935,7 +1935,8 @@ function TodoRow({
         opacity: isDragging ? 0.4 : 1,
       }}
       {...attributes}
-      {...(editing ? {} : listeners)}
+      {...(editing || confirming ? {} : listeners)}
+      onKeyDown={confirming ? (e) => e.key === "Escape" && setConfirming(false) : undefined}
       sx={{
         display: "flex",
         alignItems: "center",
@@ -1945,9 +1946,12 @@ function TodoRow({
         borderRadius: 1.5,
         touchAction: "manipulation",
         userSelect: "none",
-        cursor: editing ? "text" : "grab",
-        "&:active": { cursor: editing ? "text" : "grabbing" },
-        "&:hover": { bgcolor: "action.hover" },
+        cursor: editing || confirming ? "default" : "grab",
+        "&:active": { cursor: editing || confirming ? "default" : "grabbing" },
+        // Tinted while confirming so the pending row is unmistakable.
+        bgcolor: (t) =>
+          confirming ? `rgba(${t.vars.palette.error.mainChannel} / 0.1)` : "transparent",
+        "&:hover": { bgcolor: confirming ? undefined : "action.hover" },
         "&:hover .todo-delete, &:focus-within .todo-delete": { opacity: 1 },
         boxShadow: isDragging ? 2 : 0,
       }}
@@ -2023,50 +2027,59 @@ function TodoRow({
           )}
         </Box>
       )}
-      <IconButton
-        className="todo-delete"
-        size="small"
-        onPointerDown={(e) => e.stopPropagation()}
-        onClick={(e) => {
-          e.stopPropagation();
-          setConfirmOpen(true);
-        }}
-        aria-label="Delete task"
-        sx={{
-          opacity: 0,
-          transition: "opacity .15s, color .15s",
-          color: "text.secondary",
-          "&:hover": { color: "error.main" },
-        }}
-      >
-        <CloseIcon sx={{ fontSize: 14 }} />
-      </IconButton>
-
-      <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Delete this task?</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            {todo.title
-              ? `“${todo.title}” will be permanently removed.`
-              : "This task will be permanently removed."}
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button color="inherit" onClick={() => setConfirmOpen(false)}>
-            Cancel
-          </Button>
+      {confirming ? (
+        // Inline confirmation: the row itself asks, rather than a modal that
+        // has to restate which task is being deleted.
+        <Box
+          sx={{ display: "flex", alignItems: "center", gap: 0.25, flexShrink: 0 }}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
           <Button
-            variant="contained"
+            autoFocus
+            size="small"
             color="error"
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               onDelete(todo);
-              setConfirmOpen(false);
             }}
+            sx={{ minWidth: 0, px: 0.75, py: 0, fontSize: 12, lineHeight: 1.8 }}
           >
             Delete
           </Button>
-        </DialogActions>
-      </Dialog>
+          <Tooltip title="Keep task">
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                setConfirming(false);
+              }}
+              aria-label="Cancel deleting task"
+              sx={{ color: "text.secondary" }}
+            >
+              <CloseIcon sx={{ fontSize: 14 }} />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      ) : (
+        <IconButton
+          className="todo-delete"
+          size="small"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            setConfirming(true);
+          }}
+          aria-label="Delete task"
+          sx={{
+            opacity: 0,
+            transition: "opacity .15s, color .15s",
+            color: "text.secondary",
+            "&:hover": { color: "error.main" },
+          }}
+        >
+          <CloseIcon sx={{ fontSize: 14 }} />
+        </IconButton>
+      )}
     </Box>
   );
 }
