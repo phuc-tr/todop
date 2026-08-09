@@ -6,6 +6,7 @@ import {
   DndContext,
   DragOverlay,
   KeyboardSensor,
+  MeasuringStrategy,
   MouseSensor,
   TouchSensor,
   closestCorners,
@@ -15,6 +16,7 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragOverEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
 import {
@@ -27,6 +29,8 @@ import { CSS } from "@dnd-kit/utilities";
 import { addDays, format, isSameDay } from "date-fns";
 import { motion, useSpring } from "motion/react";
 import AppBar from "@mui/material/AppBar";
+import Divider from "@mui/material/Divider";
+import Drawer from "@mui/material/Drawer";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
@@ -49,6 +53,7 @@ import Typography from "@mui/material/Typography";
 import AddIcon from "@mui/icons-material/Add";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import ViewSidebarOutlinedIcon from "@mui/icons-material/ViewSidebarOutlined";
 import { BrandMark } from "./BrandMark";
 import CloseIcon from "@mui/icons-material/Close";
 import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
@@ -106,10 +111,19 @@ const GROW_SPRING = { stiffness: 700, damping: 44, mass: 0.4 } as const;
 const DAY_COUNT_KEY = "tracker.dayCount";
 const VIEW_START_KEY = "tracker.viewStart";
 const BACKLOG_OPEN_KEY = "tracker.backlogOpen";
-/** Height of the collapsed backlog tab; fixed so the collapse can animate. */
-const COLLAPSED_TAB_HEIGHT = 64;
-/** How far the collapsed tab bulges under the first day column. */
-const COLLAPSED_TAB_OVERLAP = 6;
+/** Standard Material drawer width. */
+const BACKLOG_WIDTH = 280;
+/** Droppable id for the edge rail that stands in for the closed drawer. */
+const BACKLOG_RAIL_ID = "backlog-rail";
+/** Width of the edge drop strip that stands in for the closed drawer. */
+const BACKLOG_RAIL_WIDTH = 32;
+/** Dwell time on the rail before the drawer springs open, so brushing past it does nothing. */
+const BACKLOG_HOVER_DELAY_MS = 400;
+// The drawer opens and closes mid-drag, moving its own rows and drop zone, so
+// targets have to be re-measured as it animates. Module-level: dnd-kit memoises
+// its measuring config by identity, and a fresh object each render would re-run
+// the measuring effects on every single render instead.
+const DND_MEASURING = { droppable: { strategy: MeasuringStrategy.Always } };
 
 function loadDayCount(): DayCount {
   if (typeof window === "undefined") return 7;
@@ -235,12 +249,6 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
   const gridRef = useRef<HTMLDivElement | null>(null);
 
   const mainRef = useRef<HTMLElement | null>(null);
-  /** Geometry of a day column's header + task area, relative to <main>. */
-  const [listBand, setListBand] = useState<{
-    top: number;
-    height: number;
-    headerHeight: number;
-  } | null>(null);
 
   const scrollToToday = useCallback((behavior: ScrollBehavior = "smooth") => {
     const key = toDateKey(new Date());
@@ -353,57 +361,6 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
   const notes = notesQuery.data ?? [];
   const tasksGoal = settingsQuery.data?.weekly_task_goal ?? 20;
 
-  // Measure a day column so the backlog can line up with it rather than with
-  // the whole calendar: its header matches the date header, and its body ends
-  // where the habits/notes footer starts (`mt: auto` pins that footer to the
-  // bottom of every column, so the band is uniform across days — unlike the
-  // task list element, which is only as tall as that day's own tasks).
-  useEffect(() => {
-    // Offsets, not client rects: the date header is `position: sticky`, so once
-    // the page scrolls its rect reports where it is stuck rather than where it
-    // is laid out. offsetTop is unaffected by that.
-    const offsetWithin = (el: HTMLElement, ancestor: HTMLElement) => {
-      let y = 0;
-      let node: HTMLElement | null = el;
-      while (node && node !== ancestor) {
-        y += node.offsetTop;
-        node = node.offsetParent as HTMLElement | null;
-      }
-      return y;
-    };
-    const measure = () => {
-      const main = mainRef.current;
-      const grid = gridRef.current;
-      const column = grid?.querySelector<HTMLElement>("[data-date]");
-      const header = column?.querySelector<HTMLElement>("[data-day-header]");
-      if (!main || !column || !header) return;
-      const top = offsetWithin(header, main);
-      const footer = column.querySelector<HTMLElement>("[data-day-footer]");
-      const bandBottom = footer
-        ? offsetWithin(footer, main)
-        : offsetWithin(column, main) + column.offsetHeight;
-      const height = bandBottom - top;
-      const headerHeight = header.offsetHeight;
-      setListBand((prev) =>
-        prev && prev.top === top && prev.height === height && prev.headerHeight === headerHeight
-          ? prev
-          : { top, height, headerHeight },
-      );
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    if (gridRef.current) ro.observe(gridRef.current);
-    const column = gridRef.current?.querySelector<HTMLElement>("[data-date]");
-    if (column) ro.observe(column);
-    window.addEventListener("resize", measure);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", measure);
-    };
-    // The ResizeObserver covers content changes; these just re-bind it when the
-    // grid itself is swapped out.
-  }, [todos.length, habits.length, dayCount]);
-
   function setTodos(fn: (prev: Todo[]) => Todo[]) {
     qc.setQueryData<Todo[]>(todosKey, (prev) => fn(prev ?? []));
   }
@@ -513,26 +470,125 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
   const [activeId, setActiveId] = useState<string | null>(null);
+  // While a drag is in flight the backlog answers to the pointer rather than to
+  // the user's saved preference: null = follow the preference, true/false = the
+  // drag is forcing it open or shut. Never persisted — cleared on drop.
+  const [backlogDragState, setBacklogDragState] = useState<boolean | null>(null);
+  const dragFromBacklog = useRef(false);
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const backlogVisible = backlogDragState ?? backlogOpen;
+
+  function cancelHoverOpen() {
+    if (hoverTimer.current === null) return;
+    clearTimeout(hoverTimer.current);
+    hoverTimer.current = null;
+  }
+
+  function isBacklogTarget(overId: string) {
+    return (
+      overId === "day-unscheduled" ||
+      overId === BACKLOG_RAIL_ID ||
+      todos.find((t) => t.id === overId)?.date === null
+    );
+  }
 
   function handleDragStart(e: DragStartEvent) {
-    setActiveId(String(e.active.id));
+    const id = String(e.active.id);
+    cancelHoverOpen();
+    setActiveId(id);
+    // Note what it was picked up from, but do NOT collapse the drawer here:
+    // dnd-kit runs onDragStart inside the same batched update that first
+    // measures the source row, so hiding the row now makes the drag overlay
+    // inherit a zero-size rect and sit at the top-left of the page. The
+    // collapse happens on the first onDragOver instead, by which point the
+    // overlay's rect is locked in.
+    dragFromBacklog.current = !todos.find((t) => t.id === id)?.date;
     // Confirm the long-press actually picked the item up.
     navigator.vibrate?.(15);
+  }
+
+  // Reaching the rail slides the drawer open so a drop position can be picked;
+  // moving off it gets the drawer back out of the way of a task heading for the
+  // calendar. This only triggers on a real pointer hit inside the rail's narrow
+  // strip (see collisionDetection) — matching it against the dragged card's
+  // much wider box would open the drawer while you were still aiming at the
+  // first day column.
+  function handleDragOver(e: DragOverEvent) {
+    if (!e.over) return;
+    if (isBacklogTarget(String(e.over.id))) {
+      // Spring-loaded: dwell on the rail rather than merely crossing it. Only
+      // arm the timer once — re-arming on every event would keep pushing the
+      // deadline out and the drawer would never open.
+      if (hoverTimer.current === null) {
+        hoverTimer.current = setTimeout(() => {
+          hoverTimer.current = null;
+          setBacklogDragState(true);
+        }, BACKLOG_HOVER_DELAY_MS);
+      }
+      return;
+    }
+    cancelHoverOpen();
+    setBacklogDragState(dragFromBacklog.current ? false : null);
+  }
+
+  function handleDragCancel() {
+    cancelHoverOpen();
+    setActiveId(null);
+    setBacklogDragState(null);
   }
 
   // Prefer whatever is under the pointer so empty day columns are valid drop
   // targets (closestCorners alone favours nearby task rows in the source day).
   function collisionDetection(args: Parameters<typeof closestCorners>[0]) {
-    const pointer = pointerWithin(args);
-    const candidates = pointer.length ? pointer : rectIntersection(args);
+    /** The drawer's own container and rows — not the rail, which is separate. */
+    const isDrawerZone = (id: string) =>
+      id === "day-unscheduled" || todos.find((t) => t.id === id)?.date === null;
+
+    // A closed drawer is hidden by a CSS transform, and dnd-kit measures
+    // droppables transform-agnostically (getTransformAgnosticClientRect) — so
+    // the off-screen paper and every row inside it still report rects lying on
+    // top of the first day column. Drop them while the drawer is shut, or the
+    // whole left edge of the calendar becomes unreachable.
+    const reachable = (c: { id: string | number }) => backlogVisible || !isDrawerZone(String(c.id));
+
+    // Pointer first: only a hit here means the cursor is genuinely inside the
+    // target. The rectIntersection fallback below matches the *dragged card's*
+    // box, which is far wider than the cursor.
+    const pointer = pointerWithin(args).filter(reachable);
+    if (pointer.length) {
+      // The drawer and its rail float over the calendar, so a day column always
+      // lies underneath them. Inside either, they win outright — otherwise the
+      // task falls through to the column the drawer is covering up.
+      const backlog = pointer.filter(
+        (c) => String(c.id) === BACKLOG_RAIL_ID || isDrawerZone(String(c.id)),
+      );
+      if (backlog.length) {
+        // A backlog row if there is one, so drops can be positioned in the list.
+        return [backlog.find((c) => !String(c.id).startsWith("day-")) ?? backlog[0]];
+      }
+      const item = pointer.find((c) => !String(c.id).startsWith("day-"));
+      return item ? [item] : pointer;
+    }
+
+    // No pointer hit: fall back to rectangle overlap, but never to the backlog.
+    // A card dragged anywhere near the left edge overlaps the narrow rail, and
+    // letting that win would swallow every drop aimed at the first day column.
+    const candidates = rectIntersection(args).filter(
+      (c) => String(c.id) !== BACKLOG_RAIL_ID && !isDrawerZone(String(c.id)),
+    );
     if (!candidates.length) return closestCorners(args);
     const item = candidates.find((c) => !String(c.id).startsWith("day-"));
     return item ? [item] : candidates;
   }
 
   function handleDragEnd(e: DragEndEvent) {
+    cancelHoverOpen();
     setActiveId(null);
     const { active, over } = e;
+    // A task parked in the backlog is worth seeing land, so a drop there sticks
+    // the drawer open; anything else releases it back to the saved preference.
+    if (over && isBacklogTarget(String(over.id))) toggleBacklog(true);
+    setBacklogDragState(null);
     if (!over) return;
     const activeTodo = todos.find((t) => t.id === active.id);
     if (!activeTodo) return;
@@ -540,7 +596,10 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
     const overId = String(over.id);
     let targetDate: string | null;
     let overTodo: Todo | undefined;
-    if (overId.startsWith("day-")) {
+    if (overId === BACKLOG_RAIL_ID) {
+      // Dropped on the edge rail while the drawer was shut.
+      targetDate = null;
+    } else if (overId.startsWith("day-")) {
       const key = overId.slice(4);
       targetDate = key === "unscheduled" ? null : key;
     } else {
@@ -724,6 +783,7 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
   });
 
   const tasksDone = todos.filter((t) => t.completed && t.date).length;
+  const backlogTodos = todos.filter((t) => !t.date).sort((a, b) => a.sort_order - b.sort_order);
   const habitStats = habits.map((h) => {
     const sum = entries.filter((e) => e.habit_id === h.id).reduce((s, e) => s + Number(e.value), 0);
     return { id: h.id, name: h.name, sum, goal: h.weekly_goal, unit: h.unit, icon: h.icon };
@@ -899,10 +959,14 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
         sensors={sensors}
         collisionDetection={collisionDetection}
         onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
+        measuring={DND_MEASURING}
       >
-        {/* Backlog is pinned flush to the left edge of the viewport, visually
-            detached from the (centered) calendar grid. */}
+        {/* The drawer is absolutely positioned against <main>, so it spans the
+            calendar area under the app bar and floats over the grid rather than
+            resizing it. */}
         <Box
           component="main"
           ref={mainRef}
@@ -911,21 +975,48 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
             display: "flex",
             alignItems: "flex-start",
             gap: 0,
-            pl: 0,
-            pr: { xs: 1, sm: 2 },
+            px: { xs: 1, sm: 2 },
             py: 2,
+            overflowX: "clip",
           }}
         >
-          <BacklogColumn
-            todos={todos.filter((t) => !t.date).sort((a, b) => a.sort_order - b.sort_order)}
-            listBand={listBand}
-            open={backlogOpen}
-            onToggleOpen={() => toggleBacklog()}
+          <BacklogDrawer
+            todos={backlogTodos}
+            open={backlogVisible}
+            dragging={activeId !== null}
+            onClose={() => toggleBacklog(false)}
             onAdd={(title) => handleAddTodo(title, null)}
             onToggle={handleToggle}
             onEdit={handleEditTitle}
             onDelete={handleDelete}
           />
+          {/* Sits in the calendar area at the left edge the drawer slides out
+              from, so the control is where the thing it controls appears. Hidden
+              while open — the drawer carries its own dismiss button. */}
+          <Tooltip title="Show unscheduled" placement="right">
+            <IconButton
+              size="small"
+              onClick={() => toggleBacklog(true)}
+              aria-label="Show unscheduled tasks"
+              aria-expanded={backlogVisible}
+              aria-controls="backlog-drawer"
+              sx={{
+                position: "absolute",
+                left: 0,
+                top: 16,
+                zIndex: 2,
+                display: backlogVisible ? "none" : "inline-flex",
+                color: "text.secondary",
+                bgcolor: "background.paper",
+                boxShadow: 2,
+                borderTopLeftRadius: 0,
+                borderBottomLeftRadius: 0,
+                "&:hover": { bgcolor: "action.hover" },
+              }}
+            >
+              <ViewSidebarOutlinedIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
           <Paper
             variant="outlined"
             ref={gridRef}
@@ -933,12 +1024,10 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
               flex: 1,
               minWidth: 0,
               maxWidth: 1600,
-              // Collapsed, the tab is only 32px wide and the grid pulls back
-              // over it so the half-circle overlaps the first column by a few
-              // pixels; expanded, the grid sits clear of it.
-              ml: backlogOpen ? { xs: 1, sm: 1.5 } : `-${COLLAPSED_TAB_OVERLAP}px`,
-              transition: "margin-left .2s ease",
-              mr: "auto",
+              // No margin reserved for the drawer: it floats over the calendar
+              // rather than displacing it, so the grid keeps its width whether
+              // the drawer is open or shut.
+              mx: "auto",
               display: "flex",
               overflowX: { xs: "auto", md: "hidden" },
               scrollSnapType: { xs: "x mandatory", md: "none" },
@@ -976,6 +1065,7 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
               );
             })}
           </Paper>
+          <BacklogDropRail active={activeId !== null && !backlogVisible} />
         </Box>
         <DragOverlay>
           {activeTodo ? (
@@ -1008,11 +1098,21 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
   );
 }
 
-function BacklogColumn({
+/**
+ * A standard Material navigation drawer for the unscheduled backlog. It is
+ * `persistent` rather than `temporary`: a temporary drawer puts a modal scrim
+ * over the page, which would swallow the pointer events that dragging a task
+ * into the drawer depends on.
+ *
+ * The paper is positioned `absolute` against <main> instead of the viewport, so
+ * it spans the calendar area beneath the app bar and floats over the grid
+ * without displacing it.
+ */
+function BacklogDrawer({
   todos,
   open,
-  listBand,
-  onToggleOpen,
+  dragging,
+  onClose,
   onAdd,
   onToggle,
   onEdit,
@@ -1020,9 +1120,9 @@ function BacklogColumn({
 }: {
   todos: Todo[];
   open: boolean;
-  /** Position/height of a day column's header + task area, relative to <main>. */
-  listBand: { top: number; height: number; headerHeight: number } | null;
-  onToggleOpen: () => void;
+  /** A task is in the air — the list doubles as a drop target. */
+  dragging: boolean;
+  onClose: () => void;
   onAdd: (title: string) => void;
   onToggle: (t: Todo) => void;
   onEdit: (t: Todo, title: string) => void;
@@ -1032,13 +1132,6 @@ function BacklogColumn({
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState("");
 
-  // Auto-expand the backlog while something is being dragged over it so the
-  // user can choose an exact drop position; collapse again when drag leaves.
-  useEffect(() => {
-    if (isOver && !open) onToggleOpen();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOver]);
-
   function confirmAdd() {
     if (draft.trim()) onAdd(draft);
     setDraft("");
@@ -1046,131 +1139,72 @@ function BacklogColumn({
   }
 
   return (
-    <Box
-      ref={setNodeRef}
-      data-date="unscheduled"
-      sx={{
-        width: { xs: open ? "72vw" : 32, md: open ? 220 : 32 },
-        maxWidth: { xs: open ? 300 : 32, md: "none" },
-        flexShrink: 0,
-        // Both states are keyed to the day columns: expanded it matches the
-        // header + task band exactly; collapsed the tab is centred on that band.
-        // It stays in flow either way — switching to absolute would drop it out
-        // of the layout in one frame and kill the collapse animation — and the
-        // grid's negative margin is what lets the tab overlap the first column.
-        position: "relative",
-        alignSelf: "flex-start",
-        // Offsets are measured from <main>, whose py: 2 the flex item already
-        // clears, hence the -16.
-        mt: listBand
-          ? `${open ? listBand.top - 16 : listBand.top + listBand.height / 2 - COLLAPSED_TAB_HEIGHT / 2 - 16}px`
-          : 0,
-        height: open
-          ? listBand
-            ? `${listBand.height}px`
-            : "auto"
-          : `${COLLAPSED_TAB_HEIGHT}px`,
-        visibility: listBand || open ? "visible" : "hidden",
-        zIndex: 2,
-        display: "flex",
-        flexDirection: "column",
-        // Detached slab hanging off the left edge: no left border/radius, so it
-        // reads as its own surface rather than a column of the calendar.
-        border: 1,
-        borderLeft: 0,
-        borderColor: "divider",
-        // Collapsed: a half-circle tab bulging out of the left edge.
-        borderTopRightRadius: open ? 8 : 999,
-        borderBottomRightRadius: open ? 8 : 999,
-        // Opaque: it sits over the grid, so no see-through surface colours.
-        bgcolor: "background.paper",
-        backgroundImage: (t) =>
-          isOver
-            ? `linear-gradient(rgba(${t.vars.palette.primary.mainChannel} / 0.12), rgba(${t.vars.palette.primary.mainChannel} / 0.12))`
-            : "none",
-        transition:
-          "width .2s ease, height .2s ease, margin-top .2s ease, border-radius .2s ease, background-color .15s",
-        overflow: "hidden",
-        "&:hover .col-affordance, &:focus-within .col-affordance": { opacity: 1 },
+    <Drawer
+      id="backlog-drawer"
+      variant="persistent"
+      anchor="left"
+      open={open}
+      // The docked root is a zero-size `flex: 0 0 auto` div and must stay
+      // unpositioned: positioning it would make it the paper's containing block
+      // and the paper's `height: 100%` would resolve against nothing. Left
+      // static, the paper resolves against <main> instead, which is what scopes
+      // the drawer to the calendar area rather than the viewport.
+      sx={{ zIndex: 2 }}
+      slotProps={{
+        paper: {
+          // The drop zone is the whole paper, not just the list inside it. The
+          // rail that opens the drawer sits in the paper's first 44px, so if
+          // anything there resolved to a day column instead the drawer would
+          // collapse, re-show the rail, and flap open/shut on every frame.
+          ref: setNodeRef,
+          elevation: 8,
+          sx: {
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: { xs: "85vw", sm: BACKLOG_WIDTH },
+            maxWidth: BACKLOG_WIDTH,
+            height: "100%",
+            border: 0,
+            borderRadius: 0,
+            display: "flex",
+            flexDirection: "column",
+          },
+        },
       }}
     >
-      {open ? (
-        <Box
-          sx={{
-            position: "sticky",
-            top: 0,
-            zIndex: 1,
-            px: 1.5,
-            py: 1,
-            // Matched to the day header so the divider under both lines up.
-            height: listBand ? `${listBand.headerHeight}px` : "auto",
-            flexShrink: 0,
-            borderBottom: 1,
-            borderColor: "divider",
-            bgcolor: "background.paper",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 0.5,
-            overflow: "hidden",
-          }}
-        >
-          <Box sx={{ minWidth: 0 }}>
-            <Typography
-              variant="overline"
-              color="text.secondary"
-              sx={{ display: "block", lineHeight: "20px" }}
-            >
-              No date
-            </Typography>
-            <Typography variant="h6" component="div" sx={{ fontWeight: 500, fontSize: 16 }}>
-              Unscheduled
-            </Typography>
-          </Box>
-          <Tooltip title="Collapse unscheduled" placement="right">
-            <IconButton
-              size="small"
-              onClick={onToggleOpen}
-              aria-label="Collapse unscheduled column"
-              sx={{ color: "text.secondary" }}
-            >
-              <ChevronLeftIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
+      {/* Drawer header — Material puts the title and the dismiss control here. */}
+      <Box
+        sx={{
+          px: 2,
+          py: 1.5,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 1,
+          flexShrink: 0,
+        }}
+      >
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="overline" color="text.secondary" sx={{ display: "block" }}>
+            No date
+          </Typography>
+          <Typography variant="h6" component="h2" sx={{ fontWeight: 500, fontSize: 16 }}>
+            Unscheduled
+            {todos.length ? (
+              <Typography component="span" color="text.secondary" sx={{ ml: 0.75, fontSize: 14 }}>
+                {todos.length}
+              </Typography>
+            ) : null}
+          </Typography>
         </Box>
-      ) : (
-        // Collapsed: the whole rail is one narrow click target — no header row,
-        // so the column costs only the width of the vertical label.
-        <Tooltip
-          title={`Expand unscheduled${todos.length ? ` (${todos.length})` : ""}`}
-          placement="right"
-        >
-          <Box
-            role="button"
-            tabIndex={0}
-            onClick={onToggleOpen}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                onToggleOpen();
-              }
-            }}
-            aria-label="Expand unscheduled column"
-            sx={{
-              flex: 1,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              minHeight: COLLAPSED_TAB_HEIGHT,
-              cursor: "pointer",
-              userSelect: "none",
-              "&:hover": { bgcolor: "action.selected" },
-            }}
-          >
-            <ChevronRightIcon sx={{ fontSize: 30, color: "text.secondary" }} />
-          </Box>
+        <Tooltip title="Hide unscheduled">
+          <IconButton size="small" onClick={onClose} aria-label="Hide unscheduled tasks">
+            <ChevronLeftIcon />
+          </IconButton>
         </Tooltip>
-      )}
+      </Box>
+      <Divider />
 
       <SortableContext
         items={todos.map((t) => t.id)}
@@ -1178,79 +1212,112 @@ function BacklogColumn({
         id="day-unscheduled"
       >
         <Box
+          data-date="unscheduled"
           sx={{
-            px: open ? 0.5 : 0,
-            py: open ? 1 : 0,
-            flex: open ? 1 : "0 0 auto",
+            flex: 1,
             minHeight: 0,
-            // The box is capped to the day columns' list height, so overflow
-            // scrolls here rather than growing the column.
-            overflowY: open ? "auto" : "visible",
+            overflowY: "auto",
+            px: 1,
+            py: 1,
             display: "flex",
             flexDirection: "column",
+            // Tinted while a task hovers — that alone reads as "this will take
+            // it", no outline needed.
+            bgcolor: (t) =>
+              isOver ? `rgba(${t.vars.palette.primary.mainChannel} / 0.12)` : "transparent",
+            transition: "background-color .15s",
+            "&:hover .col-affordance, &:focus-within .col-affordance": { opacity: 1 },
           }}
         >
-          <Box sx={{ display: open ? "block" : "none" }}>
-            {todos.map((t) => (
-              <TodoRow
-                key={t.id}
-                todo={t}
-                onToggle={onToggle}
-                onEdit={onEdit}
-                onDelete={onDelete}
-              />
-            ))}
-          </Box>
-          {open &&
-            (adding ? (
-              <Box sx={{ px: 0.5, py: 0.5 }}>
-                <InputBase
-                  autoFocus
-                  fullWidth
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onBlur={confirmAdd}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") confirmAdd();
-                    if (e.key === "Escape") {
-                      setDraft("");
-                      setAdding(false);
-                    }
-                  }}
-                  placeholder="Someday task…"
-                  sx={{
-                    fontSize: 14,
-                    px: 1,
-                    py: 0.25,
-                    borderRadius: 1.5,
-                    border: 1,
-                    borderColor: "primary.main",
-                  }}
-                />
-              </Box>
-            ) : (
-              <Button
-                className={todos.length === 0 ? undefined : "col-affordance"}
-                onClick={() => setAdding(true)}
-                startIcon={<AddIcon sx={{ fontSize: 14 }} />}
-                size="small"
-                color="inherit"
+          {todos.map((t) => (
+            <TodoRow key={t.id} todo={t} onToggle={onToggle} onEdit={onEdit} onDelete={onDelete} />
+          ))}
+          {adding ? (
+            <Box sx={{ px: 0.5, py: 0.5 }}>
+              <InputBase
+                autoFocus
                 fullWidth
-                sx={{
-                  justifyContent: "flex-start",
-                  color: "text.secondary",
-                  fontSize: 12,
-                  fontWeight: 400,
-                  borderRadius: 1.5,
-                  opacity: todos.length === 0 ? 0.75 : 0,
-                  transition: "opacity .15s",
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onBlur={confirmAdd}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") confirmAdd();
+                  if (e.key === "Escape") {
+                    setDraft("");
+                    setAdding(false);
+                  }
                 }}
-              >
-                Add a task…
-              </Button>
-            ))}
+                placeholder="Someday task…"
+                sx={{
+                  fontSize: 14,
+                  px: 1,
+                  py: 0.25,
+                  borderRadius: 1.5,
+                  border: 1,
+                  borderColor: "primary.main",
+                }}
+              />
+            </Box>
+          ) : (
+            <Button
+              className={todos.length === 0 ? undefined : "col-affordance"}
+              onClick={() => setAdding(true)}
+              startIcon={<AddIcon sx={{ fontSize: 14 }} />}
+              size="small"
+              color="inherit"
+              fullWidth
+              sx={{
+                justifyContent: "flex-start",
+                color: "text.secondary",
+                fontSize: 12,
+                fontWeight: 400,
+                borderRadius: 1.5,
+                opacity: todos.length === 0 ? 0.75 : 0,
+                transition: "opacity .15s",
+              }}
+            >
+              Add a task…
+            </Button>
+          )}
         </Box>
       </SortableContext>
+    </Drawer>
+  );
+}
+
+/**
+ * A closed persistent drawer is translated off-screen, taking its drop zone with
+ * it. This rail stands in for it: a strip down the left edge that exists only
+ * mid-drag, so a task can be sent back to the backlog without reopening the
+ * drawer by hand. Deliberately narrow, and deliberately inert until the drop —
+ * it sits on top of the first day column, so anything wider or anything that
+ * slid the drawer open on hover would take away the column you are aiming at.
+ */
+function BacklogDropRail({ active }: { active: boolean }) {
+  const { setNodeRef, isOver } = useDroppable({ id: BACKLOG_RAIL_ID });
+  return (
+    <Box
+      ref={setNodeRef}
+      aria-hidden
+      sx={{
+        position: "absolute",
+        left: 0,
+        top: 0,
+        bottom: 0,
+        width: BACKLOG_RAIL_WIDTH,
+        zIndex: 3,
+        display: active ? "flex" : "none",
+        alignItems: "center",
+        justifyContent: "center",
+        borderTopRightRadius: 999,
+        borderBottomRightRadius: 999,
+        // A soft filled strip rather than an outlined one — it deepens as the
+        // task comes over it.
+        bgcolor: (t) => `rgba(${t.vars.palette.primary.mainChannel} / ${isOver ? 0.32 : 0.14})`,
+        transition: "background-color .15s",
+      }}
+    >
+      <ChevronLeftIcon sx={{ color: "primary.main", fontSize: 20 }} />
     </Box>
   );
 }
