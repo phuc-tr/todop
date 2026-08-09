@@ -845,6 +845,8 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
               todos={todos
                 .filter((t) => !t.date)
                 .sort((a, b) => a.sort_order - b.sort_order)}
+              open={backlogOpen}
+              onToggleOpen={() => toggleBacklog()}
               onAdd={(title) => handleAddTodo(title, null)}
               onToggle={handleToggle}
               onEdit={handleEditTitle}
