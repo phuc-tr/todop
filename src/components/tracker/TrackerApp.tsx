@@ -213,6 +213,11 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
     if (typeof window !== "undefined") localStorage.setItem(VIEW_START_KEY, toDateKey(viewStart));
   }, [viewStart]);
 
+  function toggleBacklog(next = !backlogOpen) {
+    setBacklogOpen(next);
+    if (typeof window !== "undefined") localStorage.setItem(BACKLOG_OPEN_KEY, String(next));
+  }
+
   const days = useMemo(() => {
     if (dayCount === 7) return getWeekDays(viewStart);
     return Array.from({ length: dayCount }, (_, i) => addDays(viewStart, i));
