@@ -79,7 +79,8 @@ type Todo = {
   id: string;
   user_id: string;
   title: string;
-  date: string;
+  /** null = unscheduled (lives in the backlog column) */
+  date: string | null;
   completed: boolean;
   sort_order: number;
 };
@@ -253,8 +254,7 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
       const { data, error } = await supabase
         .from("todos")
         .select("*")
-        .gte("date", startKey)
-        .lte("date", endKey)
+        .or(`and(date.gte.${startKey},date.lte.${endKey}),date.is.null`)
         .order("sort_order", { ascending: true });
       if (error) throw error;
       return (data ?? []) as Todo[];
@@ -331,7 +331,7 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
   }
 
   const addTodo = useMutation({
-    mutationFn: async ({ title, date }: { title: string; date: string }) => {
+    mutationFn: async ({ title, date }: { title: string; date: string | null }) => {
       const dayTodos = (qc.getQueryData<Todo[]>(todosKey) ?? []).filter((t) => t.date === date);
       const sort_order = dayTodos.length;
       const { data, error } = await supabase
@@ -356,7 +356,7 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
     },
   });
 
-  function handleAddTodo(title: string, date: string) {
+  function handleAddTodo(title: string, date: string | null) {
     if (!title.trim()) return;
     const tempId = `tmp-${crypto.randomUUID()}`;
     const dayTodos = todos.filter((t) => t.date === date);
@@ -395,7 +395,7 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
 
   function handleToggle(t: Todo) {
     const nextCompleted = !t.completed;
-    const prevDone = todos.filter((x) => x.completed).length;
+    const prevDone = todos.filter((x) => x.completed && x.date).length;
     const nextDone = prevDone + (nextCompleted ? 1 : -1);
     setTodos((prev) => prev.map((x) => (x.id === t.id ? { ...x, completed: nextCompleted } : x)));
     if (!t.id.startsWith("tmp-"))
@@ -457,10 +457,11 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
     if (!activeTodo) return;
 
     const overId = String(over.id);
-    let targetDate: string;
+    let targetDate: string | null;
     let overTodo: Todo | undefined;
     if (overId.startsWith("day-")) {
-      targetDate = overId.slice(4);
+      const key = overId.slice(4);
+      targetDate = key === "unscheduled" ? null : key;
     } else {
       overTodo = todos.find((t) => t.id === overId);
       if (!overTodo) return;
@@ -641,7 +642,7 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
     },
   });
 
-  const tasksDone = todos.filter((t) => t.completed).length;
+  const tasksDone = todos.filter((t) => t.completed && t.date).length;
   const habitStats = habits.map((h) => {
     const sum = entries.filter((e) => e.habit_id === h.id).reduce((s, e) => s + Number(e.value), 0);
     return { id: h.id, name: h.name, sum, goal: h.weekly_goal, unit: h.unit, icon: h.icon };
@@ -830,6 +831,15 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
               scrollPaddingLeft: 8,
             }}
           >
+            <BacklogColumn
+              todos={todos
+                .filter((t) => !t.date)
+                .sort((a, b) => a.sort_order - b.sort_order)}
+              onAdd={(title) => handleAddTodo(title, null)}
+              onToggle={handleToggle}
+              onEdit={handleEditTitle}
+              onDelete={handleDelete}
+            />
             {days.map((day) => {
               const dateKey = toDateKey(day);
               const isToday = isSameDay(day, today);
@@ -889,6 +899,130 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
           </Button>
         </DialogActions>
       </Dialog>
+    </Box>
+  );
+}
+
+function BacklogColumn({
+  todos,
+  onAdd,
+  onToggle,
+  onEdit,
+  onDelete,
+}: {
+  todos: Todo[];
+  onAdd: (title: string) => void;
+  onToggle: (t: Todo) => void;
+  onEdit: (t: Todo, title: string) => void;
+  onDelete: (t: Todo) => void;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: "day-unscheduled" });
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState("");
+
+  function confirmAdd() {
+    if (draft.trim()) onAdd(draft);
+    setDraft("");
+    setAdding(false);
+  }
+
+  return (
+    <Box
+      ref={setNodeRef}
+      data-date="unscheduled"
+      sx={{
+        width: { xs: "72vw", md: 200 },
+        maxWidth: { xs: 300, md: "none" },
+        flexShrink: 0,
+        scrollSnapAlign: "start",
+        display: "flex",
+        flexDirection: "column",
+        borderRight: 2,
+        borderColor: "divider",
+        bgcolor: (t) =>
+          isOver ? `rgba(${t.vars.palette.primary.mainChannel} / 0.1)` : "action.hover",
+        transition: "background-color .15s",
+        "&:hover .col-affordance, &:focus-within .col-affordance": { opacity: 1 },
+      }}
+    >
+      <Box
+        sx={{
+          position: "sticky",
+          top: 0,
+          zIndex: 1,
+          px: 1.5,
+          py: 1,
+          borderBottom: 1,
+          borderColor: "divider",
+          bgcolor: "action.hover",
+        }}
+      >
+        <Typography variant="overline" color="text.secondary" sx={{ display: "block", lineHeight: "20px" }}>
+          No date
+        </Typography>
+        <Typography variant="h6" component="div" sx={{ fontWeight: 500, fontSize: 16 }}>
+          Unscheduled
+        </Typography>
+      </Box>
+
+      <SortableContext
+        items={todos.map((t) => t.id)}
+        strategy={verticalListSortingStrategy}
+        id="day-unscheduled"
+      >
+        <Box sx={{ px: 0.5, py: 1, flex: 1, minHeight: 140 }}>
+          {todos.map((t) => (
+            <TodoRow key={t.id} todo={t} onToggle={onToggle} onEdit={onEdit} onDelete={onDelete} />
+          ))}
+          {adding ? (
+            <Box sx={{ px: 0.5, py: 0.5 }}>
+              <InputBase
+                autoFocus
+                fullWidth
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onBlur={confirmAdd}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") confirmAdd();
+                  if (e.key === "Escape") {
+                    setDraft("");
+                    setAdding(false);
+                  }
+                }}
+                placeholder="Someday task…"
+                sx={{
+                  fontSize: 14,
+                  px: 1,
+                  py: 0.25,
+                  borderRadius: 1.5,
+                  border: 1,
+                  borderColor: "primary.main",
+                }}
+              />
+            </Box>
+          ) : (
+            <Button
+              className={todos.length === 0 ? undefined : "col-affordance"}
+              onClick={() => setAdding(true)}
+              startIcon={<AddIcon sx={{ fontSize: 14 }} />}
+              size="small"
+              color="inherit"
+              fullWidth
+              sx={{
+                justifyContent: "flex-start",
+                color: "text.secondary",
+                fontSize: 12,
+                fontWeight: 400,
+                borderRadius: 1.5,
+                opacity: todos.length === 0 ? 0.75 : 0,
+                transition: "opacity .15s",
+              }}
+            >
+              Add a task…
+            </Button>
+          )}
+        </Box>
+      </SortableContext>
     </Box>
   );
 }
