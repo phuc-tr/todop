@@ -229,6 +229,15 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
     expandedDate && days.some((d) => toDateKey(d) === expandedDate) ? expandedDate : null;
 
   const gridRef = useRef<HTMLDivElement | null>(null);
+
+  const mainRef = useRef<HTMLElement | null>(null);
+  /** Geometry of a day column's header + task area, relative to <main>. */
+  const [listBand, setListBand] = useState<{
+    top: number;
+    height: number;
+    headerHeight: number;
+  } | null>(null);
+
   const scrollToToday = useCallback((behavior: ScrollBehavior = "smooth") => {
     const key = toDateKey(new Date());
     requestAnimationFrame(() => {
@@ -332,6 +341,57 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
   const entries = entriesQuery.data ?? [];
   const notes = notesQuery.data ?? [];
   const tasksGoal = settingsQuery.data?.weekly_task_goal ?? 20;
+
+  // Measure a day column so the backlog can line up with it rather than with
+  // the whole calendar: its header matches the date header, and its body ends
+  // where the habits/notes footer starts (`mt: auto` pins that footer to the
+  // bottom of every column, so the band is uniform across days — unlike the
+  // task list element, which is only as tall as that day's own tasks).
+  useEffect(() => {
+    // Offsets, not client rects: the date header is `position: sticky`, so once
+    // the page scrolls its rect reports where it is stuck rather than where it
+    // is laid out. offsetTop is unaffected by that.
+    const offsetWithin = (el: HTMLElement, ancestor: HTMLElement) => {
+      let y = 0;
+      let node: HTMLElement | null = el;
+      while (node && node !== ancestor) {
+        y += node.offsetTop;
+        node = node.offsetParent as HTMLElement | null;
+      }
+      return y;
+    };
+    const measure = () => {
+      const main = mainRef.current;
+      const grid = gridRef.current;
+      const column = grid?.querySelector<HTMLElement>("[data-date]");
+      const header = column?.querySelector<HTMLElement>("[data-day-header]");
+      if (!main || !column || !header) return;
+      const top = offsetWithin(header, main);
+      const footer = column.querySelector<HTMLElement>("[data-day-footer]");
+      const bandBottom = footer
+        ? offsetWithin(footer, main)
+        : offsetWithin(column, main) + column.offsetHeight;
+      const height = bandBottom - top;
+      const headerHeight = header.offsetHeight;
+      setListBand((prev) =>
+        prev && prev.top === top && prev.height === height && prev.headerHeight === headerHeight
+          ? prev
+          : { top, height, headerHeight },
+      );
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (gridRef.current) ro.observe(gridRef.current);
+    const column = gridRef.current?.querySelector<HTMLElement>("[data-date]");
+    if (column) ro.observe(column);
+    window.addEventListener("resize", measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+    // The ResizeObserver covers content changes; these just re-bind it when the
+    // grid itself is swapped out.
+  }, [todos.length, habits.length, dayCount]);
 
   function setTodos(fn: (prev: Todo[]) => Todo[]) {
     qc.setQueryData<Todo[]>(todosKey, (prev) => fn(prev ?? []));
@@ -830,28 +890,48 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <Box component="main" sx={{ mx: "auto", maxWidth: 1600, px: { xs: 1, sm: 2 }, py: 2 }}>
+        {/* Backlog is pinned flush to the left edge of the viewport, visually
+            detached from the (centered) calendar grid. */}
+        <Box
+          component="main"
+          ref={mainRef}
+          sx={{
+            position: "relative",
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 0,
+            pl: 0,
+            pr: { xs: 1, sm: 2 },
+            py: 2,
+          }}
+        >
+          <BacklogColumn
+            todos={todos.filter((t) => !t.date).sort((a, b) => a.sort_order - b.sort_order)}
+            listBand={listBand}
+            open={backlogOpen}
+            onToggleOpen={() => toggleBacklog()}
+            onAdd={(title) => handleAddTodo(title, null)}
+            onToggle={handleToggle}
+            onEdit={handleEditTitle}
+            onDelete={handleDelete}
+          />
           <Paper
             variant="outlined"
             ref={gridRef}
             sx={{
+              flex: 1,
+              minWidth: 0,
+              maxWidth: 1600,
+              // Collapsed the tab is out of flow and deliberately overlaps the
+              // first column by a few pixels; expanded it sits clear of it.
+              ml: backlogOpen ? { xs: 1, sm: 1.5 } : "26px",
+              mr: "auto",
               display: "flex",
               overflowX: { xs: "auto", md: "hidden" },
               scrollSnapType: { xs: "x mandatory", md: "none" },
               scrollPaddingLeft: 8,
             }}
           >
-            <BacklogColumn
-              todos={todos
-                .filter((t) => !t.date)
-                .sort((a, b) => a.sort_order - b.sort_order)}
-              open={backlogOpen}
-              onToggleOpen={() => toggleBacklog()}
-              onAdd={(title) => handleAddTodo(title, null)}
-              onToggle={handleToggle}
-              onEdit={handleEditTitle}
-              onDelete={handleDelete}
-            />
             {days.map((day) => {
               const dateKey = toDateKey(day);
               const isToday = isSameDay(day, today);
@@ -918,6 +998,7 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
 function BacklogColumn({
   todos,
   open,
+  listBand,
   onToggleOpen,
   onAdd,
   onToggle,
@@ -926,6 +1007,8 @@ function BacklogColumn({
 }: {
   todos: Todo[];
   open: boolean;
+  /** Position/height of a day column's header + task area, relative to <main>. */
+  listBand: { top: number; height: number; headerHeight: number } | null;
   onToggleOpen: () => void;
   onAdd: (title: string) => void;
   onToggle: (t: Todo) => void;
@@ -954,77 +1037,125 @@ function BacklogColumn({
       ref={setNodeRef}
       data-date="unscheduled"
       sx={{
-        width: { xs: open ? "72vw" : 56, md: open ? 220 : 52 },
-        maxWidth: { xs: open ? 300 : 56, md: "none" },
+        width: { xs: open ? "72vw" : 32, md: open ? 220 : 32 },
+        maxWidth: { xs: open ? 300 : 32, md: "none" },
         flexShrink: 0,
-        scrollSnapAlign: "start",
+        // Both states are keyed to the day columns: expanded it matches the
+        // header + task band exactly; collapsed the tab is centred on that band
+        // and leaves the flow so it can overlap the first column.
+        ...(open
+          ? {
+              position: "relative",
+              alignSelf: "flex-start",
+              mt: listBand ? `${listBand.top - 16}px` : 0,
+              height: listBand ? `${listBand.height}px` : "auto",
+            }
+          : {
+              position: "absolute",
+              left: 0,
+              top: listBand ? listBand.top + listBand.height / 2 : "50%",
+              transform: "translateY(-50%)",
+              visibility: listBand ? "visible" : "hidden",
+            }),
+        zIndex: 2,
         display: "flex",
         flexDirection: "column",
-        borderRight: 2,
+        // Detached slab hanging off the left edge: no left border/radius, so it
+        // reads as its own surface rather than a column of the calendar.
+        border: 1,
+        borderLeft: 0,
         borderColor: "divider",
-        bgcolor: (t) =>
-          isOver ? `rgba(${t.vars.palette.primary.mainChannel} / 0.1)` : "action.hover",
+        // Collapsed: a half-circle tab bulging out of the left edge.
+        borderTopRightRadius: open ? 8 : 999,
+        borderBottomRightRadius: open ? 8 : 999,
+        // Opaque: it sits over the grid, so no see-through surface colours.
+        bgcolor: "background.paper",
+        backgroundImage: (t) =>
+          isOver
+            ? `linear-gradient(rgba(${t.vars.palette.primary.mainChannel} / 0.12), rgba(${t.vars.palette.primary.mainChannel} / 0.12))`
+            : "none",
         transition: "width .2s ease, background-color .15s",
         overflow: "hidden",
         "&:hover .col-affordance, &:focus-within .col-affordance": { opacity: 1 },
       }}
     >
-      <Box
-        sx={{
-          position: "sticky",
-          top: 0,
-          zIndex: 1,
-          px: open ? 1.5 : 0.75,
-          py: 1,
-          borderBottom: 1,
-          borderColor: "divider",
-          bgcolor: "action.hover",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 0.5,
-        }}
-      >
-        {open ? (
+      {open ? (
+        <Box
+          sx={{
+            position: "sticky",
+            top: 0,
+            zIndex: 1,
+            px: 1.5,
+            py: 1,
+            // Matched to the day header so the divider under both lines up.
+            height: listBand ? `${listBand.headerHeight}px` : "auto",
+            flexShrink: 0,
+            borderBottom: 1,
+            borderColor: "divider",
+            bgcolor: "background.paper",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 0.5,
+            overflow: "hidden",
+          }}
+        >
           <Box sx={{ minWidth: 0 }}>
-            <Typography variant="overline" color="text.secondary" sx={{ display: "block", lineHeight: "20px" }}>
+            <Typography
+              variant="overline"
+              color="text.secondary"
+              sx={{ display: "block", lineHeight: "20px" }}
+            >
               No date
             </Typography>
             <Typography variant="h6" component="div" sx={{ fontWeight: 500, fontSize: 16 }}>
               Unscheduled
             </Typography>
           </Box>
-        ) : (
-          <Tooltip title="Unscheduled tasks" placement="right">
-            <Box
-              sx={{
-                writingMode: "vertical-rl",
-                transform: "rotate(180deg)",
-                typography: "caption",
-                fontWeight: 500,
-                color: "text.secondary",
-                whiteSpace: "nowrap",
-                letterSpacing: 0.5,
-                flex: 1,
-                textAlign: "center",
-                userSelect: "none",
-              }}
+          <Tooltip title="Collapse unscheduled" placement="right">
+            <IconButton
+              size="small"
+              onClick={onToggleOpen}
+              aria-label="Collapse unscheduled column"
+              sx={{ color: "text.secondary" }}
             >
-              Unscheduled
-            </Box>
+              <ChevronLeftIcon fontSize="small" />
+            </IconButton>
           </Tooltip>
-        )}
-        <Tooltip title={open ? "Collapse unscheduled" : "Expand unscheduled"} placement="right">
-          <IconButton
-            size="small"
+        </Box>
+      ) : (
+        // Collapsed: the whole rail is one narrow click target — no header row,
+        // so the column costs only the width of the vertical label.
+        <Tooltip
+          title={`Expand unscheduled${todos.length ? ` (${todos.length})` : ""}`}
+          placement="right"
+        >
+          <Box
+            role="button"
+            tabIndex={0}
             onClick={onToggleOpen}
-            aria-label={open ? "Collapse unscheduled column" : "Expand unscheduled column"}
-            sx={{ color: "text.secondary" }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onToggleOpen();
+              }
+            }}
+            aria-label="Expand unscheduled column"
+            sx={{
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              minHeight: 64,
+              cursor: "pointer",
+              userSelect: "none",
+              "&:hover": { bgcolor: "action.selected" },
+            }}
           >
-            {open ? <ChevronLeftIcon fontSize="small" /> : <ChevronRightIcon fontSize="small" />}
-          </IconButton>
+            <ChevronRightIcon sx={{ fontSize: 30, color: "text.secondary" }} />
+          </Box>
         </Tooltip>
-      </Box>
+      )}
 
       <SortableContext
         items={todos.map((t) => t.id)}
@@ -1033,39 +1164,26 @@ function BacklogColumn({
       >
         <Box
           sx={{
-            px: open ? 0.5 : 0.25,
-            py: 1,
-            flex: 1,
-            minHeight: 140,
+            px: open ? 0.5 : 0,
+            py: open ? 1 : 0,
+            flex: open ? 1 : "0 0 auto",
+            minHeight: 0,
+            // The box is capped to the day columns' list height, so overflow
+            // scrolls here rather than growing the column.
+            overflowY: open ? "auto" : "visible",
             display: "flex",
             flexDirection: "column",
-            gap: open ? 0 : 0.5,
-            alignItems: open ? "stretch" : "center",
           }}
         >
-          {!open && todos.length > 0 && (
-            <Tooltip title={`${todos.length} unscheduled task${todos.length === 1 ? "" : "s"}`} placement="right">
-              <Box
-                sx={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: "50%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  bgcolor: "primary.main",
-                  color: "primary.contrastText",
-                  typography: "caption",
-                  fontWeight: 600,
-                }}
-              >
-                {todos.length}
-              </Box>
-            </Tooltip>
-          )}
           <Box sx={{ display: open ? "block" : "none" }}>
             {todos.map((t) => (
-              <TodoRow key={t.id} todo={t} onToggle={onToggle} onEdit={onEdit} onDelete={onDelete} />
+              <TodoRow
+                key={t.id}
+                todo={t}
+                onToggle={onToggle}
+                onEdit={onEdit}
+                onDelete={onDelete}
+              />
             ))}
           </Box>
           {open &&
@@ -1205,6 +1323,7 @@ function DayColumn({
       }}
     >
       <Box
+        data-day-header
         role="button"
         tabIndex={0}
         aria-expanded={isExpanded}
@@ -1294,7 +1413,7 @@ function DayColumn({
         strategy={verticalListSortingStrategy}
         id={`day-${dateKey}`}
       >
-        <Box sx={{ px: 0.5, py: 1, minHeight: 140 }}>
+        <Box data-todo-list sx={{ px: 0.5, py: 1, minHeight: 140 }}>
           {todos.map((t) => (
             <TodoRow key={t.id} todo={t} onToggle={onToggle} onEdit={onEdit} onDelete={onDelete} />
           ))}
@@ -1348,7 +1467,7 @@ function DayColumn({
         </Box>
       </SortableContext>
 
-      <Box sx={{ mt: "auto" }}>
+      <Box data-day-footer sx={{ mt: "auto" }}>
         {habits.length > 0 && (
           <Stack spacing={0.5} sx={{ borderTop: 1, borderColor: "divider", px: 1, py: 1 }}>
             {habits.map((h) => {
@@ -1805,15 +1924,21 @@ function TodoRow({
             p: 0,
             cursor: "default",
             overflow: "hidden",
-            ...(url
-              ? {}
-              : { textOverflow: "ellipsis", whiteSpace: "nowrap" }),
+            ...(url ? {} : { textOverflow: "ellipsis", whiteSpace: "nowrap" }),
             color: todo.completed ? "text.secondary" : "text.primary",
             textDecoration: todo.completed ? "line-through" : "none",
             fontStyle: todo.title ? "normal" : "italic",
           }}
         >
-          {todo.title ? url ? <TitleWithLink title={todo.title} url={url} /> : todo.title : "Untitled"}
+          {todo.title ? (
+            url ? (
+              <TitleWithLink title={todo.title} url={url} />
+            ) : (
+              todo.title
+            )
+          ) : (
+            "Untitled"
+          )}
         </Box>
       )}
       <IconButton
