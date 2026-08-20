@@ -16,9 +16,6 @@ import { BrandMark } from "@/components/tracker/BrandMark";
 
 export const Route = createFileRoute("/auth")({
   component: AuthPage,
-  validateSearch: (s: Record<string, unknown>) => ({
-    next: typeof s.next === "string" && /^\/[^/\\]/.test(s.next) ? s.next : undefined,
-  }),
   head: () => ({
     meta: [
       { title: "Sign in — Weekly Tracker" },
