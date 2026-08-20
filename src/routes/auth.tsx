@@ -55,9 +55,26 @@ function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [isGuest, setIsGuest] = useState(false);
 
+  // A pending "connect an assistant" flow parks its consent URL in ?next=…;
+  // every sign-in path has to return there instead of the app root.
+  function pendingNext(): string | null {
+    if (typeof window === "undefined") return null;
+    const value = new URLSearchParams(window.location.search).get("next");
+    return value && /^\/[^/\\]/.test(value) ? value : null;
+  }
+
+  function goAfterAuth() {
+    const next = pendingNext();
+    if (next) {
+      window.location.replace(next);
+      return;
+    }
+    navigate({ to: "/" });
+  }
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      if (data.user && !data.user.is_anonymous) navigate({ to: "/" });
+      if (data.user && !data.user.is_anonymous) goAfterAuth();
       if (data.user?.is_anonymous) {
         setIsGuest(true);
         setMode("signup");
@@ -65,10 +82,11 @@ function AuthPage() {
     });
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" && session?.user && !session.user.is_anonymous) {
-        navigate({ to: "/" });
+        goAfterAuth();
       }
     });
     return () => sub.subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
   async function submit(e: React.FormEvent) {
@@ -91,7 +109,7 @@ function AuthPage() {
           const { error } = await supabase.auth.signUp({
             email,
             password,
-            options: { emailRedirectTo: window.location.origin },
+            options: { emailRedirectTo: window.location.origin + (pendingNext() ?? "/") },
           });
           if (error) throw error;
           toast.success("Account created. Check your email if confirmation is required.");
@@ -109,7 +127,7 @@ function AuthPage() {
 
   async function google() {
     const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+      redirect_uri: window.location.origin + (pendingNext() ?? "/"),
     });
     if (result.error) toast.error("Google sign in failed");
   }
