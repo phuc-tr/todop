@@ -35,7 +35,7 @@ export const Route = createFileRoute("/.lovable/oauth/consent")({
     const { data } = await supabase.auth.getSession();
     const next = location.pathname + location.searchStr;
     if (!data.session || data.session.user.is_anonymous) {
-      throw redirect({ to: "/auth", search: { next } });
+      throw redirect({ href: `/auth?next=${encodeURIComponent(next)}` });
     }
   },
   loader: async ({ location }) => {
