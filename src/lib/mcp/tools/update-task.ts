@@ -17,7 +17,7 @@ export default defineTool({
   annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
   handler: async ({ id, title, completed, date }, ctx) => {
     if (!requireUser(ctx)) return unauthenticated();
-    const patch: Record<string, unknown> = {};
+    const patch: { title?: string; completed?: boolean; date?: string | null } = {};
     if (title !== undefined) patch.title = title;
     if (completed !== undefined) patch.completed = completed;
     if (date !== undefined) patch.date = date;
