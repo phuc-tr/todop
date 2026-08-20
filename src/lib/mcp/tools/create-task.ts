@@ -17,13 +17,13 @@ export default defineTool({
     const userId = requireUser(ctx);
     if (!userId) return unauthenticated();
     const supabase = supabaseForUser(ctx);
-    const { data: last } = await supabase
+    const lastQuery = supabase
       .from("todos")
       .select("sort_order")
-      .is("date", date ? (null as never) : null)
       .order("sort_order", { ascending: false })
       .limit(1);
-    const sortOrder = date ? Date.now() % 100000 : ((last?.[0]?.sort_order ?? 0) + 1);
+    const { data: last } = await (date ? lastQuery.eq("date", date) : lastQuery.is("date", null));
+    const sortOrder = (last?.[0]?.sort_order ?? -1) + 1;
     const { data, error } = await supabase
       .from("todos")
       .insert({ user_id: userId, title, date: date ?? null, sort_order: sortOrder })
