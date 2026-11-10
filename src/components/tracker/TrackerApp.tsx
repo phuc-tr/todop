@@ -53,6 +53,10 @@ import AddIcon from "@mui/icons-material/Add";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ViewSidebarOutlinedIcon from "@mui/icons-material/ViewSidebarOutlined";
+import PushPinIcon from "@mui/icons-material/PushPin";
+import PushPinOutlinedIcon from "@mui/icons-material/PushPinOutlined";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import type { Theme } from "@mui/material/styles";
 import { BrandMark } from "./BrandMark";
 import CloseIcon from "@mui/icons-material/Close";
 import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
@@ -109,6 +113,7 @@ const GROW_SPRING = { stiffness: 700, damping: 44, mass: 0.4 } as const;
 const DAY_COUNT_KEY = "tracker.dayCount";
 const VIEW_START_KEY = "tracker.viewStart";
 const BACKLOG_OPEN_KEY = "tracker.backlogOpen";
+const BACKLOG_PINNED_KEY = "tracker.backlogPinned";
 /** Standard Material drawer width. */
 const BACKLOG_WIDTH = 280;
 /** Droppable id for the edge rail that stands in for the closed drawer. */
@@ -212,6 +217,16 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
     if (typeof window === "undefined") return true;
     return localStorage.getItem(BACKLOG_OPEN_KEY) !== "false";
   });
+  const [backlogPinnedPref, setBacklogPinnedPref] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem(BACKLOG_PINNED_KEY) === "true";
+  });
+  // Pinning docks the drawer beside the calendar instead of over it. On a phone
+  // there is no room to dock a 280px column, so it falls back to floating there.
+  const canPin = useMediaQuery((t: Theme) => t.breakpoints.up("sm"), {
+    noSsr: true,
+  });
+  const backlogPinned = backlogPinnedPref && canPin;
 
   function setDayCount(count: DayCount) {
     setDayCountState(count);
@@ -232,6 +247,13 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
   function toggleBacklog(next = !backlogOpen) {
     setBacklogOpen(next);
     if (typeof window !== "undefined") localStorage.setItem(BACKLOG_OPEN_KEY, String(next));
+  }
+
+  function setBacklogPinned(next: boolean) {
+    setBacklogPinnedPref(next);
+    if (typeof window !== "undefined") localStorage.setItem(BACKLOG_PINNED_KEY, String(next));
+    // Unpinning leaves it open as the floating drawer; closing is a separate step.
+    if (next) toggleBacklog(true);
   }
 
   const days = useMemo(() => {
@@ -474,7 +496,13 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
   const [backlogDragState, setBacklogDragState] = useState<boolean | null>(null);
   const dragFromBacklog = useRef(false);
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const backlogVisible = backlogDragState ?? backlogOpen;
+  // Pinned decides *how* the drawer shows (docked beside the page vs. floating
+  // over it); open decides *whether* it shows. Pinned and open = docked, and a
+  // docked drawer is part of the layout, so a drag never collapses it. Pinned
+  // but collapsed behaves like any closed drawer: the rail can spring it open
+  // as an overlay mid-drag, and a drop into it re-opens it docked.
+  const backlogDocked = backlogPinned && backlogOpen;
+  const backlogVisible = backlogDocked || (backlogDragState ?? backlogOpen);
 
   function cancelHoverOpen() {
     if (hoverTimer.current === null) return;
@@ -797,7 +825,16 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
   const dayBackgrounds = useDayBackgrounds();
 
   return (
-    <Box sx={{ minHeight: "100dvh", bgcolor: "background.default" }}>
+    <Box
+      sx={{
+        minHeight: "100dvh",
+        bgcolor: "background.default",
+        // A pinned drawer runs the full height of the window, so the whole page —
+        // app bar included — moves over to sit beside it.
+        pl: backlogDocked ? `${BACKLOG_WIDTH}px` : 0,
+        transition: "padding-left .2s",
+      }}
+    >
       <AppBar position="static" sx={{ bgcolor: "background.default" }}>
         <Box sx={{ mx: "auto", width: "100%", maxWidth: 1600, px: { xs: 2, sm: 3 }, py: 1.5 }}>
           {/* Below md the date controls drop to their own full-width row so the
@@ -808,6 +845,22 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
               spacing={1.5}
               sx={{ alignItems: "center", minWidth: 0, order: 1 }}
             >
+              {/* Expand sits at the window's top-left — the spot the drawer
+                  occupies when open — and mirrors its collapse button. */}
+              {backlogVisible ? null : (
+                <Tooltip title="Show unscheduled">
+                  <IconButton
+                    size="small"
+                    onClick={() => toggleBacklog(true)}
+                    aria-label="Show unscheduled tasks"
+                    aria-expanded={false}
+                    aria-controls="backlog-drawer"
+                    sx={{ color: "text.secondary", ml: -0.5 }}
+                  >
+                    <SidebarToggleIcon />
+                  </IconButton>
+                </Tooltip>
+              )}
               <BrandMark />
               <Typography
                 variant="body2"
@@ -959,9 +1012,8 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
         onDragCancel={handleDragCancel}
         measuring={DND_MEASURING}
       >
-        {/* The drawer is absolutely positioned against <main>, so it spans the
-            calendar area under the app bar and floats over the grid rather than
-            resizing it. */}
+        {/* The drawer is fixed to the window edge at full height. Unpinned it
+            floats over the page; pinned, the page is padded over beside it. */}
         <Box
           component="main"
           ref={mainRef}
@@ -971,8 +1023,6 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
             alignItems: "flex-start",
             gap: 0,
             px: { xs: 1, sm: 2 },
-            // Clear the drawer toggle that sits on the left edge.
-            pl: { xs: 5, sm: 5 },
             py: 2,
             overflowX: "clip",
           }}
@@ -981,38 +1031,15 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
             todos={backlogTodos}
             open={backlogVisible}
             dragging={activeId !== null}
+            pinned={backlogPinned}
+            canPin={canPin}
+            onPinChange={setBacklogPinned}
             onClose={() => toggleBacklog(false)}
             onAdd={(title) => handleAddTodo(title, null)}
             onToggle={handleToggle}
             onEdit={handleEditTitle}
             onDelete={handleDelete}
           />
-          {/* Sits in the calendar area at the left edge the drawer slides out
-              from, so the control is where the thing it controls appears. Hidden
-              while open — the drawer carries its own dismiss button. */}
-          <Tooltip title="Show unscheduled" placement="right">
-            <IconButton
-              size="small"
-              onClick={() => toggleBacklog(true)}
-              aria-label="Show unscheduled tasks"
-              aria-expanded={backlogVisible}
-              aria-controls="backlog-drawer"
-              sx={{
-                position: "absolute",
-                left: 0,
-                top: 16,
-                zIndex: 2,
-                display: backlogVisible ? "none" : "inline-flex",
-                color: "text.secondary",
-                bgcolor: SIDEBAR_BG,
-                borderTopLeftRadius: 0,
-                borderBottomLeftRadius: 0,
-                "&:hover": { bgcolor: "action.hover" },
-              }}
-            >
-              <ViewSidebarOutlinedIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
           <Box
             ref={gridRef}
             sx={{
@@ -1109,14 +1136,17 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
  * over the page, which would swallow the pointer events that dragging a task
  * into the drawer depends on.
  *
- * The paper is positioned `absolute` against <main> instead of the viewport, so
- * it spans the calendar area beneath the app bar and floats over the grid
- * without displacing it.
+ * The paper is fixed to the left edge of the window at full height. Unpinned it
+ * floats over the page without displacing it; pinned, the page is padded over
+ * to sit beside it.
  */
 function BacklogDrawer({
   todos,
   open,
   dragging,
+  pinned,
+  canPin,
+  onPinChange,
   onClose,
   onAdd,
   onToggle,
@@ -1127,6 +1157,11 @@ function BacklogDrawer({
   open: boolean;
   /** A task is in the air — the list doubles as a drop target. */
   dragging: boolean;
+  /** Docked beside the calendar rather than floating over it. */
+  pinned: boolean;
+  /** Wide enough to dock; on phones the pin control is hidden. */
+  canPin: boolean;
+  onPinChange: (pinned: boolean) => void;
   onClose: () => void;
   onAdd: (title: string) => void;
   onToggle: (t: Todo) => void;
@@ -1149,11 +1184,8 @@ function BacklogDrawer({
       variant="persistent"
       anchor="left"
       open={open}
-      // The docked root is a zero-size `flex: 0 0 auto` div and must stay
-      // unpositioned: positioning it would make it the paper's containing block
-      // and the paper's `height: 100%` would resolve against nothing. Left
-      // static, the paper resolves against <main> instead, which is what scopes
-      // the drawer to the calendar area rather than the viewport.
+      // The docked root is a zero-size `flex: 0 0 auto` div; the paper is fixed
+      // to the viewport, so the root's own position doesn't matter.
       sx={{ zIndex: 2 }}
       slotProps={{
         paper: {
@@ -1165,13 +1197,15 @@ function BacklogDrawer({
           elevation: 0,
           sx: {
             bgcolor: SIDEBAR_BG,
-            boxShadow: "4px 0 24px rgba(0,0,0,0.06)",
-            position: "absolute",
+            // Floating over the grid it needs a shadow to lift it off; docked
+            // beside it, it's just another column.
+            boxShadow: pinned ? "none" : "4px 0 24px rgba(0,0,0,0.06)",
+            position: "fixed",
             top: 0,
             left: 0,
             width: { xs: "85vw", sm: BACKLOG_WIDTH },
             maxWidth: BACKLOG_WIDTH,
-            height: "100%",
+            height: "100dvh",
             border: 0,
             borderRadius: 0,
             display: "flex",
@@ -1206,11 +1240,40 @@ function BacklogDrawer({
             ) : null}
           </Typography>
         </Box>
-        <Tooltip title="Hide unscheduled">
-          <IconButton size="small" onClick={onClose} aria-label="Hide unscheduled tasks">
-            <ChevronLeftIcon />
-          </IconButton>
-        </Tooltip>
+        <Box sx={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+          {canPin ? (
+            <Tooltip title={pinned ? "Unpin" : "Pin to the left"}>
+              <IconButton
+                size="small"
+                onClick={() => onPinChange(!pinned)}
+                aria-label={
+                  pinned ? "Unpin unscheduled tasks" : "Pin unscheduled tasks to the left"
+                }
+                aria-pressed={pinned}
+                sx={{ color: pinned ? "primary.main" : "text.secondary" }}
+              >
+                {pinned ? (
+                  <PushPinIcon fontSize="small" />
+                ) : (
+                  <PushPinOutlinedIcon fontSize="small" />
+                )}
+              </IconButton>
+            </Tooltip>
+          ) : null}
+          {/* Collapsing keeps the pin: the drawer comes back docked. */}
+          <Tooltip title="Hide unscheduled">
+            <IconButton
+              size="small"
+              onClick={onClose}
+              aria-label="Hide unscheduled tasks"
+              aria-expanded
+              aria-controls="backlog-drawer"
+              sx={{ color: "text.secondary" }}
+            >
+              <SidebarToggleIcon />
+            </IconButton>
+          </Tooltip>
+        </Box>
       </Box>
 
       <SortableContext
@@ -1281,6 +1344,13 @@ function BacklogDrawer({
  * it sits on top of the first day column, so anything wider or anything that
  * slid the drawer open on hover would take away the column you are aiming at.
  */
+/** One icon for both directions of the drawer toggle, so expand and collapse read
+ * as the same control. Mirrored so the panel in the glyph is on the left, where
+ * the drawer is. */
+function SidebarToggleIcon() {
+  return <ViewSidebarOutlinedIcon fontSize="small" sx={{ transform: "scaleX(-1)" }} />;
+}
+
 function BacklogDropRail({ active }: { active: boolean }) {
   const { setNodeRef, isOver } = useDroppable({ id: BACKLOG_RAIL_ID });
   return (
