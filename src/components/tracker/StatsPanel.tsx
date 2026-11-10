@@ -7,6 +7,7 @@ import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { HabitIcon } from "./habitIcons";
+import { SIDEBAR_BG } from "@/lib/muiTheme";
 
 type HabitStat = {
   id: string;
@@ -52,7 +53,7 @@ function StatBar({
         variant="determinate"
         value={value}
         color={done ? "success" : "primary"}
-        sx={{ height: 6 }}
+        sx={{ height: 4 }}
       />
     </Box>
   );
@@ -77,8 +78,8 @@ export function StatsPanel({
 
   return (
     <Paper
-      variant="outlined"
-      sx={{ px: 2, py: 1.75, width: { xs: "100%", sm: 288 }, flexShrink: 0 }}
+      elevation={0}
+      sx={{ px: 2, py: 1.75, width: { xs: "100%", sm: 288 }, flexShrink: 0, bgcolor: SIDEBAR_BG }}
     >
       <Stack spacing={1.75}>
         <StatBar

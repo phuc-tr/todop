@@ -20,6 +20,7 @@ import FormatQuoteIcon from "@mui/icons-material/FormatQuote";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/lib/toast";
+import { SIDEBAR_BG } from "@/lib/muiTheme";
 
 const COLLECTION_KEY = "tracker.quotes.collection";
 const CUSTOM_PREFIX = "tracker.quotes.custom.";
@@ -338,8 +339,7 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
 
   return (
     <Paper
-      variant={onImage ? "elevation" : "outlined"}
-      elevation={onImage ? 2 : 0}
+      elevation={0}
       sx={{
         position: "relative",
         overflow: "hidden",
@@ -352,11 +352,10 @@ export function QuotePanel({ weekKey }: { weekKey: string }) {
         display: "flex",
         alignItems: "stretch",
         gap: 1,
+        bgcolor: SIDEBAR_BG,
         backgroundImage: bgUrl ? `url(${bgUrl})` : undefined,
         backgroundSize: "cover",
         backgroundPosition: "center",
-        transition: "box-shadow .2s",
-        "&:hover": { boxShadow: 3 },
         "&:hover .quote-tools": { opacity: 1 },
       }}
     >

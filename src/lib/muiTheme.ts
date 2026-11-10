@@ -12,6 +12,8 @@ declare module "@mui/material/styles" {
   }
 
   interface ColorSchemeOverrides {
+    "light-blue": true;
+    "dark-blue": true;
     "light-green": true;
     "dark-green": true;
     "light-purple": true;
@@ -34,7 +36,7 @@ declare module "@mui/material/styles" {
  * `InitColorSchemeScript` applies the stored one before hydration, which is why
  * neither the mode nor the accent flashes on first paint.
  */
-export type ThemeColor = "blue" | "green" | "purple" | "rose" | "orange" | "amber" | "mono";
+export type ThemeColor = "red" | "blue" | "green" | "purple" | "rose" | "orange" | "amber" | "mono";
 export type Mode = "light" | "dark";
 
 type AccentTokens = { primary: string; success: string };
@@ -43,6 +45,13 @@ export const ACCENTS: Record<
   ThemeColor,
   { label: string; light: AccentTokens; dark: AccentTokens; swatch: string }
 > = {
+  // Todoist's signature red is the default accent.
+  red: {
+    label: "Red",
+    light: { primary: "#dc4c3e", success: "#058527" },
+    dark: { primary: "#ff7066", success: "#4caf6a" },
+    swatch: "#dc4c3e",
+  },
   blue: {
     label: "Blue",
     light: { primary: "#2275e8", success: "#2b9f4a" },
@@ -89,31 +98,40 @@ export const ACCENTS: Record<
 
 export const ACCENT_KEYS = Object.keys(ACCENTS) as ThemeColor[];
 
-/** Blue is the default accent, so it owns the plain `light` / `dark` schemes. */
+export const DEFAULT_ACCENT: ThemeColor = "red";
+
+/** The default accent owns the plain `light` / `dark` schemes. */
 export function schemeName(mode: Mode, accent: ThemeColor): SupportedColorScheme {
-  return (accent === "blue" ? mode : `${mode}-${accent}`) as SupportedColorScheme;
+  return (accent === DEFAULT_ACCENT ? mode : `${mode}-${accent}`) as SupportedColorScheme;
 }
 
 export function parseScheme(scheme: string | undefined): ThemeColor {
-  if (!scheme) return "blue";
+  if (!scheme) return DEFAULT_ACCENT;
   const accent = scheme.replace(/^(light|dark)-?/, "");
-  return (ACCENT_KEYS as string[]).includes(accent) ? (accent as ThemeColor) : "blue";
+  return (ACCENT_KEYS as string[]).includes(accent) ? (accent as ThemeColor) : DEFAULT_ACCENT;
 }
 
+// Todoist-style neutrals: a plain white canvas, a warm off-white for side
+// surfaces, near-black text and dividers faint enough to read as spacing.
 const NEUTRALS = {
   light: {
-    background: { default: "#f7f8fa", paper: "#ffffff" },
-    text: { primary: "#020618", secondary: "#62748e" },
-    divider: "#e2e5e8",
-    error: "#e7000b",
+    background: { default: "#ffffff", paper: "#ffffff" },
+    text: { primary: "#202020", secondary: "#808080" },
+    divider: "#f0f0f0",
+    error: "#d1453b",
+    sidebar: "#fcfaf8",
   },
   dark: {
-    background: { default: "#020618", paper: "#0f172b" },
-    text: { primary: "#f8fafc", secondary: "#90a1b9" },
-    divider: "rgba(255, 255, 255, 0.12)",
-    error: "#ff6467",
+    background: { default: "#1e1e1e", paper: "#1e1e1e" },
+    text: { primary: "#e8e8e8", secondary: "#8a8a8a" },
+    divider: "rgba(255, 255, 255, 0.07)",
+    error: "#ff7066",
+    sidebar: "#262626",
   },
 } as const;
+
+/** Background for side surfaces (the backlog drawer, panels). */
+export const SIDEBAR_BG = "var(--app-sidebar-bg)";
 
 function colorScheme(mode: Mode, accent: ThemeColor) {
   const neutral = NEUTRALS[mode];
@@ -139,45 +157,58 @@ const colorSchemes = Object.fromEntries(
   (["light", "dark"] as Mode[]).flatMap((mode) =>
     ACCENT_KEYS.map((accent) => {
       const scheme = colorScheme(mode, accent);
-      return [schemeName(mode, accent), accent === "blue" ? scheme : createColorScheme(scheme)];
+      return [
+        schemeName(mode, accent),
+        accent === DEFAULT_ACCENT ? scheme : createColorScheme(scheme),
+      ];
     }),
   ),
 ) as ThemeOptions["colorSchemes"];
 
+/** Soft, wide, low-opacity shadow used for floating surfaces instead of borders. */
+const FLOAT_SHADOW = "0 1px 8px rgba(0,0,0,0.08), 0 4px 24px rgba(0,0,0,0.06)";
+/** Fill used where a bordered control would normally sit. */
+const FILL = "rgba(128,128,128,0.08)";
+const FILL_HOVER = "rgba(128,128,128,0.14)";
+
 export const theme = createTheme({
   cssVariables: { colorSchemeSelector: "class" },
   colorSchemes,
-  shape: { borderRadius: 10 },
+  // Todoist uses small, tight radii rather than Material's pills and big cards.
+  shape: { borderRadius: 6 },
   typography: {
     fontFamily:
-      '"Roboto", "Helvetica Neue", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
-    // Material's display sizes are far too loud for a dense planner, so the
-    // headline scale is pulled in and tightened.
-    h1: { fontSize: "3.5rem", fontWeight: 400, letterSpacing: "-0.02em" },
-    h2: { fontSize: "2rem", fontWeight: 400, letterSpacing: "-0.01em" },
-    h3: { fontSize: "1.5rem", fontWeight: 400 },
-    h4: { fontSize: "1.375rem", fontWeight: 500 },
-    h5: { fontSize: "1.125rem", fontWeight: 500 },
-    h6: { fontSize: "1rem", fontWeight: 500, letterSpacing: "-0.01em" },
-    subtitle2: { fontWeight: 500 },
-    button: { textTransform: "none", fontWeight: 500, letterSpacing: 0 },
-    overline: { letterSpacing: "0.08em", fontWeight: 500 },
+      '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji"',
+    fontSize: 14,
+    h1: { fontSize: "3.5rem", fontWeight: 700, letterSpacing: "-0.02em" },
+    h2: { fontSize: "2rem", fontWeight: 700, letterSpacing: "-0.01em" },
+    h3: { fontSize: "1.5rem", fontWeight: 700 },
+    h4: { fontSize: "1.375rem", fontWeight: 700 },
+    h5: { fontSize: "1.25rem", fontWeight: 700, letterSpacing: "-0.01em" },
+    h6: { fontSize: "1rem", fontWeight: 600 },
+    subtitle2: { fontWeight: 600 },
+    button: { textTransform: "none", fontWeight: 600, letterSpacing: 0 },
+    overline: { letterSpacing: 0, fontWeight: 600, textTransform: "none" },
   },
   components: {
     MuiCssBaseline: {
       styleOverrides: {
+        ":root": { "--app-sidebar-bg": NEUTRALS.light.sidebar },
+        ':root[class~="dark"], :root[class*="dark-"]': {
+          "--app-sidebar-bg": NEUTRALS.dark.sidebar,
+        },
         "html, body, #root": { height: "100%" },
         body: { WebkitFontSmoothing: "antialiased" },
         // Slim, low-contrast scrollbars that stay out of the way in dense panes.
         "*": {
           scrollbarWidth: "thin",
-          scrollbarColor: "rgba(128,128,128,0.35) transparent",
+          scrollbarColor: "rgba(128,128,128,0.3) transparent",
         },
         "*::-webkit-scrollbar": { width: 6, height: 6 },
         "*::-webkit-scrollbar-track": { background: "transparent" },
         "*::-webkit-scrollbar-thumb": {
           borderRadius: 999,
-          backgroundColor: "rgba(128,128,128,0.35)",
+          backgroundColor: "rgba(128,128,128,0.3)",
         },
         // iOS zooms the page when focusing a control under 16px.
         "@media (max-width: 767px)": {
@@ -185,33 +216,95 @@ export const theme = createTheme({
         },
       },
     },
-    MuiPaper: { styleOverrides: { root: { backgroundImage: "none" } } },
+    MuiPaper: {
+      styleOverrides: { root: { backgroundImage: "none" }, outlined: { border: 0 } },
+    },
     MuiAppBar: { defaultProps: { elevation: 0, color: "inherit" } },
     MuiButton: {
-      defaultProps: { disableElevation: true },
+      defaultProps: { disableElevation: true, disableRipple: true },
       styleOverrides: {
-        // Material 3 buttons are pill-shaped.
-        root: { borderRadius: 999 },
-        sizeSmall: { paddingInline: 14 },
+        root: { borderRadius: 6, boxShadow: "none" },
+        sizeSmall: { paddingInline: 10, paddingBlock: 3, fontSize: 13 },
+        // Borderless: the "outlined" variant reads as a quiet filled button.
+        outlined: {
+          border: 0,
+          backgroundColor: FILL,
+          color: "var(--mui-palette-text-primary)",
+          "&:hover": { border: 0, backgroundColor: FILL_HOVER },
+        },
+        contained: { "&:hover": { boxShadow: "none", filter: "brightness(0.92)" } },
+      },
+    },
+    MuiIconButton: {
+      defaultProps: { disableRipple: true },
+      styleOverrides: {
+        root: { borderRadius: 6, color: "var(--mui-palette-text-secondary)" },
+      },
+    },
+    MuiToggleButtonGroup: {
+      styleOverrides: {
+        root: { backgroundColor: FILL, borderRadius: 6, padding: 2, gap: 2 },
+        grouped: { border: 0, borderRadius: "5px !important", margin: 0 },
       },
     },
     MuiToggleButton: {
-      styleOverrides: { root: { textTransform: "none", fontWeight: 500 } },
+      defaultProps: { disableRipple: true },
+      styleOverrides: {
+        root: {
+          textTransform: "none",
+          fontWeight: 600,
+          fontSize: 12,
+          border: 0,
+          paddingBlock: 3,
+          color: "var(--mui-palette-text-secondary)",
+          "&.Mui-selected, &.Mui-selected:hover": {
+            backgroundColor: "var(--mui-palette-background-paper)",
+            color: "var(--mui-palette-text-primary)",
+            boxShadow: "0 1px 2px rgba(0,0,0,0.12)",
+          },
+        },
+      },
     },
     MuiTextField: { defaultProps: { size: "small", variant: "outlined" } },
+    // Fields are tinted wells with no outline until focused.
+    MuiOutlinedInput: {
+      styleOverrides: {
+        root: {
+          backgroundColor: FILL,
+          "& .MuiOutlinedInput-notchedOutline": { borderColor: "transparent" },
+          "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "transparent" },
+          "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderWidth: 1 },
+        },
+      },
+    },
     MuiTooltip: {
-      defaultProps: { arrow: true, enterDelay: 400 },
+      defaultProps: { arrow: false, enterDelay: 400 },
+      styleOverrides: {
+        tooltip: { fontSize: 12, fontWeight: 500, borderRadius: 5, backgroundColor: "#303030" },
+      },
     },
     MuiDialog: {
       defaultProps: { slotProps: { paper: { elevation: 0 } } },
-      styleOverrides: { paper: { borderRadius: 16 } },
+      styleOverrides: { paper: { borderRadius: 10, boxShadow: FLOAT_SHADOW } },
     },
     MuiMenu: {
-      defaultProps: { slotProps: { paper: { elevation: 3 } } },
-      styleOverrides: { paper: { borderRadius: 12 } },
+      defaultProps: { slotProps: { paper: { elevation: 0 } } },
+      styleOverrides: {
+        paper: { borderRadius: 8, boxShadow: FLOAT_SHADOW },
+        list: { padding: 4 },
+      },
+    },
+    MuiMenuItem: {
+      styleOverrides: { root: { borderRadius: 5, fontSize: 13, minHeight: 32 } },
+    },
+    MuiDivider: {
+      styleOverrides: { root: { borderColor: "var(--mui-palette-divider)" } },
     },
     MuiLinearProgress: {
-      styleOverrides: { root: { borderRadius: 999 }, bar: { borderRadius: 999 } },
+      styleOverrides: {
+        root: { borderRadius: 999, backgroundColor: FILL },
+        bar: { borderRadius: 999 },
+      },
     },
     MuiChip: { styleOverrides: { root: { fontWeight: 500 } } },
   },

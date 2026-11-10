@@ -107,7 +107,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "theme-color", content: "#f7f8fa" },
+      { name: "theme-color", content: "#ffffff" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-title", content: "Tracker" },
       { name: "apple-mobile-web-app-status-bar-style", content: "default" },
@@ -142,7 +142,7 @@ const LEGACY_THEME_MIGRATION = `try{
   }
   if(!localStorage.getItem('mui-color-scheme-light')){
     var c=localStorage.getItem('themeColor');
-    if(c&&c!=='blue'){
+    if(c){
       localStorage.setItem('mui-color-scheme-light','light-'+c);
       localStorage.setItem('mui-color-scheme-dark','dark-'+c);
     }

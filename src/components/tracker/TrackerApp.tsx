@@ -29,7 +29,6 @@ import { CSS } from "@dnd-kit/utilities";
 import { addDays, format, isSameDay } from "date-fns";
 import { motion, useSpring } from "motion/react";
 import AppBar from "@mui/material/AppBar";
-import Divider from "@mui/material/Divider";
 import Drawer from "@mui/material/Drawer";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -63,15 +62,14 @@ import LightModeOutlinedIcon from "@mui/icons-material/LightModeOutlined";
 import LogoutIcon from "@mui/icons-material/Logout";
 import OpenInFullIcon from "@mui/icons-material/OpenInFull";
 import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
+import CheckIcon from "@mui/icons-material/Check";
 import RemoveIcon from "@mui/icons-material/Remove";
 import { supabase } from "@/integrations/supabase/client";
 import { StatsPanel } from "./StatsPanel";
 import { SettingsDialog, type Habit } from "./SettingsDialog";
 import { QuotePanel } from "./QuotePanel";
 import { useAppTheme } from "@/lib/theme";
-import { ACCENTS, ACCENT_KEYS, type ThemeColor } from "@/lib/muiTheme";
+import { ACCENTS, ACCENT_KEYS, SIDEBAR_BG, type ThemeColor } from "@/lib/muiTheme";
 import { toast } from "@/lib/toast";
 import { HabitIcon } from "./habitIcons";
 import { playSound } from "@/lib/sound";
@@ -800,10 +798,7 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
 
   return (
     <Box sx={{ minHeight: "100dvh", bgcolor: "background.default" }}>
-      <AppBar
-        position="static"
-        sx={{ bgcolor: "background.paper", borderBottom: 1, borderColor: "divider" }}
-      >
+      <AppBar position="static" sx={{ bgcolor: "background.default" }}>
         <Box sx={{ mx: "auto", width: "100%", maxWidth: 1600, px: { xs: 2, sm: 3 }, py: 1.5 }}>
           {/* Below md the date controls drop to their own full-width row so the
               icon cluster never wraps a single button onto a line of its own. */}
@@ -818,7 +813,7 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
                 variant="body2"
                 color="text.secondary"
                 noWrap
-                sx={{ display: { xs: "none", lg: "block" } }}
+                sx={{ display: { xs: "none", lg: "block" }, fontWeight: 500 }}
               >
                 {formatRange(days[0], days[days.length - 1])}
               </Typography>
@@ -976,6 +971,8 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
             alignItems: "flex-start",
             gap: 0,
             px: { xs: 1, sm: 2 },
+            // Clear the drawer toggle that sits on the left edge.
+            pl: { xs: 5, sm: 5 },
             py: 2,
             overflowX: "clip",
           }}
@@ -1007,8 +1004,7 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
                 zIndex: 2,
                 display: backlogVisible ? "none" : "inline-flex",
                 color: "text.secondary",
-                bgcolor: "background.paper",
-                boxShadow: 2,
+                bgcolor: SIDEBAR_BG,
                 borderTopLeftRadius: 0,
                 borderBottomLeftRadius: 0,
                 "&:hover": { bgcolor: "action.hover" },
@@ -1017,13 +1013,13 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
               <ViewSidebarOutlinedIcon fontSize="small" />
             </IconButton>
           </Tooltip>
-          <Paper
-            variant="outlined"
+          <Box
             ref={gridRef}
             sx={{
               flex: 1,
               minWidth: 0,
               maxWidth: 1600,
+              gap: { xs: 1, md: 2 },
               // No margin reserved for the drawer: it floats over the calendar
               // rather than displacing it, so the grid keeps its width whether
               // the drawer is open or shut.
@@ -1064,12 +1060,21 @@ export function TrackerApp({ userId, isGuest = false }: { userId: string; isGues
                 />
               );
             })}
-          </Paper>
+          </Box>
           <BacklogDropRail active={activeId !== null && !backlogVisible} />
         </Box>
         <DragOverlay>
           {activeTodo ? (
-            <Paper elevation={6} sx={{ px: 1.5, py: 1, fontSize: 14, cursor: "grabbing" }}>
+            <Paper
+              elevation={0}
+              sx={{
+                px: 1.5,
+                py: 1,
+                fontSize: 14,
+                cursor: "grabbing",
+                boxShadow: "0 4px 16px rgba(0,0,0,0.14)",
+              }}
+            >
               {activeTodo.title || "Untitled"}
             </Paper>
           ) : null}
@@ -1157,8 +1162,10 @@ function BacklogDrawer({
           // anything there resolved to a day column instead the drawer would
           // collapse, re-show the rail, and flap open/shut on every frame.
           ref: setNodeRef,
-          elevation: 8,
+          elevation: 0,
           sx: {
+            bgcolor: SIDEBAR_BG,
+            boxShadow: "4px 0 24px rgba(0,0,0,0.06)",
             position: "absolute",
             top: 0,
             left: 0,
@@ -1186,13 +1193,14 @@ function BacklogDrawer({
         }}
       >
         <Box sx={{ minWidth: 0 }}>
-          <Typography variant="overline" color="text.secondary" sx={{ display: "block" }}>
-            No date
-          </Typography>
-          <Typography variant="h6" component="h2" sx={{ fontWeight: 500, fontSize: 16 }}>
+          <Typography variant="h6" component="h2" sx={{ fontWeight: 700, fontSize: 16 }}>
             Unscheduled
             {todos.length ? (
-              <Typography component="span" color="text.secondary" sx={{ ml: 0.75, fontSize: 14 }}>
+              <Typography
+                component="span"
+                color="text.secondary"
+                sx={{ ml: 0.75, fontSize: 13, fontWeight: 400 }}
+              >
                 {todos.length}
               </Typography>
             ) : null}
@@ -1204,7 +1212,6 @@ function BacklogDrawer({
           </IconButton>
         </Tooltip>
       </Box>
-      <Divider />
 
       <SortableContext
         items={todos.map((t) => t.id)}
@@ -1251,33 +1258,14 @@ function BacklogDrawer({
                 sx={{
                   fontSize: 14,
                   px: 1,
-                  py: 0.25,
-                  borderRadius: 1.5,
-                  border: 1,
-                  borderColor: "primary.main",
+                  py: 0.5,
+                  borderRadius: 1,
+                  bgcolor: "action.hover",
                 }}
               />
             </Box>
           ) : (
-            <Button
-              className={todos.length === 0 ? undefined : "col-affordance"}
-              onClick={() => setAdding(true)}
-              startIcon={<AddIcon sx={{ fontSize: 14 }} />}
-              size="small"
-              color="inherit"
-              fullWidth
-              sx={{
-                justifyContent: "flex-start",
-                color: "text.secondary",
-                fontSize: 12,
-                fontWeight: 400,
-                borderRadius: 1.5,
-                opacity: todos.length === 0 ? 0.75 : 0,
-                transition: "opacity .15s",
-              }}
-            >
-              Add a task…
-            </Button>
+            <AddTaskButton onClick={() => setAdding(true)} />
           )}
         </Box>
       </SortableContext>
@@ -1390,15 +1378,9 @@ function DayColumn({
         scrollSnapAlign: "start",
         display: "flex",
         flexDirection: "column",
-        borderRight: 1,
-        borderColor: "divider",
-        "&:last-of-type": { borderRight: 0 },
+        borderRadius: 2,
         bgcolor: (t) =>
-          isOver
-            ? `rgba(${t.vars.palette.primary.mainChannel} / 0.1)`
-            : isToday
-              ? `rgba(${t.vars.palette.primary.mainChannel} / 0.04)`
-              : "background.paper",
+          isOver ? `rgba(${t.vars.palette.primary.mainChannel} / 0.06)` : "transparent",
         transition: "background-color .15s",
         // Row affordances stay hidden until the column is hovered or focused.
         "&:hover .col-affordance, &:focus-within .col-affordance": { opacity: 1 },
@@ -1422,16 +1404,13 @@ function DayColumn({
           position: "sticky",
           top: 0,
           zIndex: 1,
-          px: 1.5,
-          py: 1,
+          px: 1,
+          pt: 1,
           cursor: "pointer",
           userSelect: "none",
-          borderBottom: 1,
-          borderColor: "divider",
-          bgcolor: (t) =>
-            isToday && !background
-              ? `rgba(${t.vars.palette.primary.mainChannel} / 0.08)`
-              : "background.paper",
+          borderRadius: background ? 2 : 0,
+          overflow: "hidden",
+          bgcolor: "background.default",
         }}
       >
         {background && (
@@ -1446,7 +1425,7 @@ function DayColumn({
                 left: 0,
                 right: 0,
                 top: 0,
-                bottom: -1,
+                bottom: 0,
                 backgroundImage: `url(${background.src})`,
                 backgroundSize: "cover",
                 backgroundPosition: background.position ?? "center",
@@ -1460,32 +1439,44 @@ function DayColumn({
                 left: 0,
                 right: 0,
                 top: 0,
-                bottom: -1,
+                bottom: 0,
                 bgcolor: (t) => `rgba(${t.vars.palette.background.defaultChannel} / 0.55)`,
               }}
             />
           </>
         )}
-        <Box sx={{ position: "relative" }}>
+        {/* Todoist-style day heading: "10 Nov  Today · Tue" on one line. */}
+        <Box
+          sx={{
+            position: "relative",
+            display: "flex",
+            alignItems: "baseline",
+            gap: 0.75,
+            minWidth: 0,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            pb: 0.75,
+            borderBottom: 1,
+            borderColor: "divider",
+          }}
+        >
           <Typography
-            variant="overline"
-            color="text.secondary"
-            // Whole-pixel line height: a fractional header height makes the
-            // bottom edge land mid-pixel and antialias into a bright seam.
-            sx={{ display: "block", lineHeight: "20px" }}
-          >
-            {label}
-          </Typography>
-          <Typography
-            variant="h6"
             component="div"
             sx={{
+              fontSize: 14,
+              fontWeight: 700,
               fontVariantNumeric: "tabular-nums",
               color: isToday ? "primary.main" : "text.primary",
-              fontWeight: isToday ? 600 : 500,
             }}
           >
-            {day.getDate()}
+            {format(day, "d MMM")}
+          </Typography>
+          <Typography
+            component="div"
+            noWrap
+            sx={{ fontSize: 12, color: isToday ? "primary.main" : "text.secondary", minWidth: 0 }}
+          >
+            {isToday ? `Today · ${label}` : label}
           </Typography>
         </Box>
       </Box>
@@ -1495,7 +1486,7 @@ function DayColumn({
         strategy={verticalListSortingStrategy}
         id={`day-${dateKey}`}
       >
-        <Box data-todo-list sx={{ px: 0.5, py: 1, minHeight: 260 }}>
+        <Box data-todo-list sx={{ px: 1, py: 0.5, minHeight: 260 }}>
           {todos.map((t) => (
             <TodoRow key={t.id} todo={t} onToggle={onToggle} onEdit={onEdit} onDelete={onDelete} />
           ))}
@@ -1518,40 +1509,21 @@ function DayColumn({
                 sx={{
                   fontSize: 14,
                   px: 1,
-                  py: 0.25,
-                  borderRadius: 1.5,
-                  border: 1,
-                  borderColor: "primary.main",
+                  py: 0.5,
+                  borderRadius: 1,
+                  bgcolor: "action.hover",
                 }}
               />
             </Box>
           ) : (
-            <Button
-              className={todos.length === 0 ? undefined : "col-affordance"}
-              onClick={() => setAdding(true)}
-              startIcon={<AddIcon sx={{ fontSize: 14 }} />}
-              size="small"
-              color="inherit"
-              fullWidth
-              sx={{
-                justifyContent: "flex-start",
-                color: "text.secondary",
-                fontSize: 12,
-                fontWeight: 400,
-                borderRadius: 1.5,
-                opacity: todos.length === 0 ? 0.75 : 0,
-                transition: "opacity .15s",
-              }}
-            >
-              Add a task…
-            </Button>
+            <AddTaskButton onClick={() => setAdding(true)} />
           )}
         </Box>
       </SortableContext>
 
       <Box data-day-footer sx={{ mt: "auto" }}>
         {habits.length > 0 && (
-          <Stack spacing={0.5} sx={{ borderTop: 1, borderColor: "divider", px: 1, py: 1 }}>
+          <Stack spacing={0.5} sx={{ px: 1, py: 1 }}>
             {habits.map((h) => {
               const entry = entries.find((e) => e.habit_id === h.id && e.date === dateKey);
               return (
@@ -1600,12 +1572,12 @@ function DayNoteArea({
   };
 
   return (
-    <Box sx={{ borderTop: 1, borderColor: "divider", px: 1.5, py: 1 }}>
+    <Box sx={{ px: 1, py: 1 }}>
       <Stack
         direction="row"
         sx={{ alignItems: "center", justifyContent: "space-between", mb: 0.5 }}
       >
-        <Typography variant="overline" color="text.secondary" sx={{ fontSize: 10 }}>
+        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
           Notes
         </Typography>
         <Tooltip title="Edit full screen">
@@ -1716,9 +1688,7 @@ function HabitInput({
         height: 28,
         borderRadius: 999,
         overflow: "hidden",
-        border: 1,
-        transition: "background-color .15s, border-color .15s",
-        borderColor: filled ? "primary.main" : "divider",
+        transition: "background-color .15s",
         bgcolor: (t) =>
           filled ? `rgba(${t.vars.palette.primary.mainChannel} / 0.1)` : "action.hover",
         color: filled ? "primary.main" : "text.secondary",
@@ -1941,9 +1911,11 @@ function TodoRow({
         display: "flex",
         alignItems: "center",
         gap: 0.5,
-        pl: 0.25,
-        pr: 0.5,
-        borderRadius: 1.5,
+        pl: 0,
+        pr: 0.25,
+        py: 0.25,
+        borderBottom: 1,
+        borderColor: "divider",
         touchAction: "manipulation",
         userSelect: "none",
         cursor: editing || confirming ? "default" : "grab",
@@ -1951,9 +1923,7 @@ function TodoRow({
         // Tinted while confirming so the pending row is unmistakable.
         bgcolor: (t) =>
           confirming ? `rgba(${t.vars.palette.error.mainChannel} / 0.1)` : "transparent",
-        "&:hover": { bgcolor: confirming ? undefined : "action.hover" },
         "&:hover .todo-delete, &:focus-within .todo-delete": { opacity: 1 },
-        boxShadow: isDragging ? 2 : 0,
       }}
     >
       <Checkbox
@@ -1961,9 +1931,10 @@ function TodoRow({
         checked={todo.completed}
         onChange={() => onToggle(todo)}
         slotProps={{ input: { "aria-label": todo.title || "Untitled task" } }}
-        icon={<RadioButtonUncheckedIcon sx={{ fontSize: 18 }} />}
-        checkedIcon={<CheckCircleIcon sx={{ fontSize: 18 }} />}
-        sx={{ p: 0.75, color: "primary.main" }}
+        disableRipple
+        icon={<TaskCircle checked={false} />}
+        checkedIcon={<TaskCircle checked />}
+        sx={{ p: 0.75, "&:hover .task-circle-check": { opacity: 1 } }}
       />
       {editing ? (
         <InputBase
@@ -2081,5 +2052,78 @@ function TodoRow({
         </IconButton>
       )}
     </Box>
+  );
+}
+
+/** Todoist's round task checkbox: a thin ring that previews its tick on hover. */
+function TaskCircle({ checked }: { checked: boolean }) {
+  return (
+    <Box
+      component="span"
+      sx={{
+        width: 18,
+        height: 18,
+        borderRadius: "50%",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        border: 1.5,
+        borderColor: "text.secondary",
+        bgcolor: checked ? "text.secondary" : "transparent",
+        color: checked ? "background.paper" : "text.secondary",
+        transition: "background-color .15s",
+      }}
+    >
+      <CheckIcon
+        className={checked ? undefined : "task-circle-check"}
+        sx={{ fontSize: 12, opacity: checked ? 1 : 0, transition: "opacity .15s" }}
+      />
+    </Box>
+  );
+}
+
+/** Todoist's quiet "+ Add task" line: accent plus, grey label, accent on hover. */
+function AddTaskButton({ onClick }: { onClick: () => void }) {
+  return (
+    <Button
+      onClick={onClick}
+      size="small"
+      color="inherit"
+      fullWidth
+      startIcon={
+        <Box
+          component="span"
+          className="add-task-plus"
+          sx={{
+            width: 18,
+            height: 18,
+            borderRadius: "50%",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "primary.main",
+            transition: "background-color .15s, color .15s",
+          }}
+        >
+          <AddIcon sx={{ fontSize: 18 }} />
+        </Box>
+      }
+      sx={{
+        justifyContent: "flex-start",
+        color: "text.secondary",
+        fontSize: 13,
+        fontWeight: 400,
+        px: 0.75,
+        mt: 0.5,
+        "& .MuiButton-startIcon": { ml: 0, mr: 0.75 },
+        "&:hover": {
+          bgcolor: "transparent",
+          color: "primary.main",
+          "& .add-task-plus": { bgcolor: "primary.main", color: "primary.contrastText" },
+        },
+      }}
+    >
+      Add task
+    </Button>
   );
 }
